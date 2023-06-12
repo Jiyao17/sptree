@@ -6,6 +6,7 @@
 
 from enum import Enum
 from collections.abc import Iterable
+from copy import deepcopy
 
 
 class EntType(Enum):
@@ -22,10 +23,10 @@ class MeasureAccu:
         assert len(params) == 3
         for param in params:
             assert 0 <= param <= 1
-        self.params = params
+        self.params = deepcopy(params)
 
-        self.p = params[0]*params[1]
-        self.eta = params[2]
+        self.p = self.params[0] * self.params[1]
+        self.eta = self.params[2]
 
         if self.params[0] == 1 and self.params[1] == 1 and self.params[2] == 1:
             self.noisy = False
@@ -33,17 +34,64 @@ class MeasureAccu:
             self.noisy = True
 
 class Operation:
-    def __init__(self, ent_type: EntType, ms_accu: MeasureAccu) -> None:
+    def __init__(self, 
+            ent_type: EntType = EntType.DEPHASED,
+            ms_accu: MeasureAccu = MeasureAccu((1, 1, 1)),
+        ) -> None:
         self.ent_type = ent_type
-        self.ms_accu = ms_accu
+        self.ms_accu = deepcopy(ms_accu)
 
         # self.noisy = ms_accu.noisy
         # self.p = ms_accu.p
         # self.eta = ms_accu.eta
 
         if self.ent_type == EntType.DEPHASED:
-            assert self.noisy == False, \
+            assert self.ms_accu.noisy == False, \
                 "Noisy measurement not supported in dephased system"
+
+    def swap(self, f1, f2):
+        if self.ent_type == EntType.DEPHASED:
+            return self._swap_dephased(f1, f2)
+        elif self.ent_type == EntType.WERNER:
+            return self._swap_werner(f1, f2, error_mode=True)
+        else:
+            raise ValueError('ent_type must be DEPHASED or WERNER')
+    
+    def seq_swap(self, fs):
+        f = fs[0]
+        for i in range(1, len(fs)):
+            f = self.swap(f, fs[i])
+        return f
+
+    def swap_grad(self, f1, f2, partial):
+        if self.ent_type == EntType.DEPHASED:
+            return self._swap_dephased_grad(f1, f2, partial)
+        elif self.ent_type == EntType.WERNER:
+            return self._swap_werner_grad(f1, f2, partial)
+        else:
+            raise ValueError('ent_type must be DEPHASED or WERNER')
+
+    def purify(self, f1, f2):
+        if self.ent_type == EntType.DEPHASED:
+            return self._purify_dephased(f1, f2)
+        elif self.ent_type == EntType.WERNER:
+            return self._purify_werner(f1, f2)
+        else:
+            raise ValueError('ent_type must be DEPHASED or WERNER')
+    
+    def seq_purify(self, fs):
+        f = fs[0]
+        for i in range(1, len(fs)):
+            f = self.purify(f, fs[i])
+        return f
+
+    def purify_grad(self, f1, f2, partial):
+        if self.ent_type == EntType.DEPHASED:
+            return self._purify_dephased_grad(f1, f2, partial)
+        elif self.ent_type == EntType.WERNER:
+            return self._purify_werner_grad(f1, f2, partial)
+        else:
+            raise ValueError('ent_type must be DEPHASED or WERNER')
 
     def _swap_dephased(self, f1, f2):
         f = f1*f2 + (1-f1)*(1-f2)
@@ -56,15 +104,7 @@ class Operation:
         f = 1/4 + (1/36) * p * (4*eta**2-1) * (4*f1 - 1) * (4*f2 - 1)
         return f
 
-    def swap(self, f1, f2):
-        if self.ent_type == EntType.DEPHASED:
-            return self._swap_dephased(f1, f2)
-        elif self.ent_type == EntType.WERNER:
-            return self._swap_werner(f1, f2, error_mode=True)
-        else:
-            raise ValueError('ent_type must be DEPHASED or WERNER')
-    
-    def _swap_dephased_grad(f1, f2, partial=1):
+    def _swap_dephased_grad(f1, f2, partial):
         if partial == 1:
             grad = f2 - (1-f2)
         elif partial == 2:
@@ -73,7 +113,7 @@ class Operation:
             raise ValueError('partial must be 1 or 2')
         return grad
 
-    def _swap_werner_grad(self, f1, f2, partial=1):
+    def _swap_werner_grad(self, f1, f2, partial):
         p = self.ms_accu.p
         eta = self.ms_accu.eta
 
@@ -84,14 +124,6 @@ class Operation:
         else:
             raise ValueError('p must be 1 or 2')
         return grad
-
-    def swap_grad(self, f1, f2, partial):
-        if self.ent_type == EntType.DEPHASED:
-            return self._swap_dephased_grad(f1, f2, partial)
-        elif self.ent_type == EntType.WERNER:
-            return self._swap_werner_grad(f1, f2, partial)
-        else:
-            raise ValueError('ent_type must be DEPHASED or WERNER')
 
     def _purify_dephased(self, f1, f2):
         f = (f1 * f2) / (f1 * f2 + (1 - f1) * (1 - f2))
@@ -108,15 +140,7 @@ class Operation:
         f = nume / deno
         return f
 
-    def purify(self, f1, f2):
-        if self.ent_type == EntType.DEPHASED:
-            return self._purify_dephased(f1, f2)
-        elif self.ent_type == EntType.WERNER:
-            return self._purify_werner(f1, f2)
-        else:
-            raise ValueError('ent_type must be DEPHASED or WERNER')
-    
-    def _purify_dephased_grad(f1, f2, partial=1):
+    def _purify_dephased_grad(f1, f2, partial):
         deno = ((f1 * f2 + (1 - f1) * (1 - f2)))**2
         if partial == 1:
             nume = f2 * (f1 * f2 + (1 - f1) * (1 - f2)) - f1*f2 * (f2 - (1 - f2))
@@ -128,7 +152,7 @@ class Operation:
         grad = nume / deno
         return grad
     
-    def _purify_werner_grad(self, f1, f2, partial=1):
+    def _purify_werner_grad(self, f1, f2, partial):
         e1, e2 = (1-f1)/3, (1-f2)/3
         p = self.ms_accu.p
         eta = self.ms_accu.eta
@@ -153,13 +177,7 @@ class Operation:
         grad = nume / deno
         return grad
 
-    def purify_grad(self, f1, f2, partial=1):
-        if self.ent_type == EntType.DEPHASED:
-            return self._purify_dephased_grad(f1, f2, partial)
-        elif self.ent_type == EntType.WERNER:
-            return self._purify_werner_grad(f1, f2, partial)
-        else:
-            raise ValueError('ent_type must be DEPHASED or WERNER')
+
 
 
 if __name__ == '__main__':

@@ -175,7 +175,7 @@ class QuNetOptim:
         return self.model.objVal
     
 
-def test_QuNet():
+def test_QuNetOptim():
     np.random.seed(0)
 
     qunet = QuNet()
@@ -209,7 +209,7 @@ if __name__ == '__main__':
 
     np.random.seed(0)
 
-    test_QuNet()
+    test_QuNetOptim()
 
 
 
