@@ -7,7 +7,7 @@ from gurobipy import GRB
 
 import numpy as np
 
-from network import NodeID, NodePair, EdgeTuple, Path
+from network import NodeID, NodePair, EdgeTuple, StaticPath
 from network import BufferedNode, Edge, QuNetTask, QuNet
 from quantum import EntType, MeasureAccu, Operation
 
@@ -75,7 +75,7 @@ class QuNetOptim:
         self.params['K']: 'list[NodePair]' = copy.deepcopy(self.task.user_pairs)
         self.K = self.params['K']
         # paths between user pairs, {k: [path]}
-        self.params['P']: 'dict[NodePair, list[Path]]' = copy.deepcopy(self.task.up_paths)
+        self.params['P']: 'dict[NodePair, list[StaticPath]]' = copy.deepcopy(self.task.up_paths)
         self.P = self.params['P']
 
         # workload of user pair, {(k, t): load}
@@ -86,7 +86,7 @@ class QuNetOptim:
         self.F = self.params['F']
 
         # path length
-        self.params['Pl']: 'dict[Path, int]' = {}
+        self.params['Pl']: 'dict[StaticPath, int]' = {}
         for np, paths in self.P.items():
             for path in paths:
                 self.params['Pl'][path] = len(path)
@@ -94,7 +94,7 @@ class QuNetOptim:
 
         # purification allocations
         # indices = []
-        self.params['x']: 'dict[tuple[NodePair, Path], GRB.INTEGER]' = {}
+        self.params['x']: 'dict[tuple[NodePair, StaticPath], GRB.INTEGER]' = {}
         self.x = self.params['x']
         for k in self.K:
             for p in self.P[k]:
@@ -106,7 +106,7 @@ class QuNetOptim:
 
     def path_prep(self,) -> 'tuple[int, int]':
         # path allocations
-        self.params['A']: 'dict[tuple[NodePair, Path, EdgeTuple], int]' = {}
+        self.params['A']: 'dict[tuple[NodePair, StaticPath, EdgeTuple], int]' = {}
         self.A = self.params['A']
 
         total_pair_num = 0

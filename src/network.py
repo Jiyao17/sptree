@@ -19,9 +19,10 @@ from quantum import EntType, MeasureAccu, Operation
 NodeID = NewType('NodeID', int)
 NodePair = NewType('NodePair', tuple[NodeID, NodeID])
 EdgeTuple = NewType('EdgeTuple', tuple[NodeID, NodeID])
-Path = NewType('Path', tuple[EdgeTuple])
+StaticPath = NewType('StaticPath', tuple[EdgeTuple])
+Path = NewType('Path', list[EdgeTuple])
 
-# Path = list[EdgeTuple]
+
 
 class NodeType(Enum):
     BUFFERED = 1
@@ -91,7 +92,7 @@ class QuNet:
         Find at most k disjoint paths from src to dst
         If no enough paths, return all paths found
         """
-        paths: list[Path] = []
+        paths: list[StaticPath] = []
         # make a deep copy of the graph when processing each user pair 
         # to find disjoint paths
         tnet = copy.deepcopy(net)
@@ -158,7 +159,7 @@ class QuNetTask:
         
         self.user_pairs: 'list[NodePair]' = []
         # all real paths between user pairs
-        self.up_paths: 'dict[NodePair, list[Path]]' = {}
+        self.up_paths: 'dict[NodePair, list[StaticPath]]' = {}
         # set in workload_gen()
         self.workload: 'dict[NodePair, int]' = {}
         self.fid_req: 'dict[NodePair, float]' = {}
@@ -206,7 +207,6 @@ class QuNetTask:
 
 def test_QuNet():
     # draw an example graph
-    # where repeater nodes are orange, EU nodes are green
 
     np.random.seed(0)
 
