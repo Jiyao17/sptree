@@ -7,9 +7,9 @@ from gurobipy import GRB
 
 import numpy as np
 
-from network import NodeID, NodePair, EdgeTuple, StaticPath
-from network import BufferedNode, Edge, QuNetTask, QuNet
-from quantum import EntType, MeasureAccu, Operation
+from network.network import NodeID, NodePair, EdgeTuple, StaticPath
+from network.network import BufferedNode, Edge, QuNetTask, QuNet
+from physical.quantum import EntType, HW, Operation
 
 
 class ObjType:

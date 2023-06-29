@@ -7,8 +7,8 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 
-from topology import Topology, ATT, IBM
-from quantum import EntType, MeasureAccu, Operation
+from .topology import Topology, ATT, IBM
+from physical.quantum import EntType, HW, Operation
 
 
 # A Quantum Overlay Network (QON) is a directed multi-graph (MultiDiGraph), therefore:

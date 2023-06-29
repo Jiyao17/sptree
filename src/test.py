@@ -1,18 +1,16 @@
 
 
-from quantum import EntType, MeasureAccu, Operation
 
 
-def test():
-    op = Operation(EntType.DEPHASED, MeasureAccu((1, 1, 1)))
+def test_spst():
+    from sps.spst import test_SPP_PSS
+    test_SPP_PSS()
 
-    f = 0.8
-    f1 = op.swap(f, f)
-    f2 = op.purify(f1, f1)
-    f3 = op.swap(f2, f)
-
-    print(f1, f2, f3)
-
+def test_osps_dp():
+    from sps.osps_dp import test_OSPS_DP
+    f = test_OSPS_DP()
+    print(f)
 
 if __name__ == '__main__':
-    test()
+    # test_spst()
+    test_osps_dp()

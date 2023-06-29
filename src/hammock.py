@@ -1,7 +1,7 @@
 
-from network import QuNet, QuNetTask, EdgeTuple
-from sps import GRDYSolver
-from quantum import Operation
+from network.network import QuNet, QuNetTask, EdgeTuple
+from solver.spst import GRDYSolver
+from physical.quantum import Operation
 
 
 class Hammock:
