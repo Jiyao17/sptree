@@ -7,6 +7,14 @@
 from enum import Enum
 from collections.abc import Iterable
 from copy import deepcopy
+from typing import NewType
+
+
+FidType = NewType('FidType', float)
+ProbType = NewType('ProbType', float)
+BudgetType = NewType('BudgetType', int)
+ExpCostType = NewType('ExpBudgetType', float)
+OpResultType = NewType('OpResultType', tuple[FidType, ProbType])
 
 
 class EntType(Enum):
@@ -21,7 +29,7 @@ class OpType(Enum):
     PURIFY = 2
 
 
-class HW:
+class HWParam:
     # Hardware setting
     def __init__(self, params: 'Iterable[float]') -> None:
         """
@@ -47,19 +55,19 @@ class HW:
 
 
 # perfect hardware
-HWP = HW((1, 1, 1, 1))
+HWP = HWParam((1, 1, 1, 1))
 # noisy hardware, high accuracy
-HWH = HW((0.999, 0.999, 0.999, 0.99))
+HWH = HWParam((0.999, 0.999, 0.999, 0.99))
 # noisy hardware, medium accuracy
-HWM = HW((0.99, 0.99, 0.99, 0.9))
+HWM = HWParam((0.99, 0.99, 0.99, 0.95))
 # noisy hardware, low accuracy
-HWL = HW((0.9, 0.9, 0.9, 0.5))
+HWL = HWParam((0.9, 0.9, 0.9, 0.5))
 
 
-class Operation:
+class Gate:
     def __init__(self, 
             ent_type: EntType = EntType.DEPHASED,
-            hdw: HW = HWP,
+            hdw: HWParam = HWP,
         ) -> None:
         self.ent_type = ent_type
         self.hw = deepcopy(hdw)
@@ -72,7 +80,7 @@ class Operation:
             assert self.hw.noisy == False, \
                 "Noisy measurement not supported in dephased system"
 
-    def swap(self, f1, f2) -> 'tuple[float, float]':
+    def swap(self, f1, f2) -> 'OpResultType':
         if self.ent_type == EntType.DEPHASED:
             f = self._swap_dephased(f1, f2)
         elif self.ent_type == EntType.WERNER:
@@ -82,13 +90,28 @@ class Operation:
         
         return f, self.hw.prob_swap
     
-    def seq_swap(self, fs):
-        f = fs[0]
-        for i in range(1, len(fs)):
-            f, p = self.swap(f, fs[i])
-        return f, p
+    def seq_swap(self, fids):
+        f = fids[0]
+        for i in range(1, len(fids)):
+            f, p = self.swap(f, fids[i])
+        return f
+    
+    def seq_swap_grad(self, fids, partial):
+        prod = 1
+        for i in range(len(fids)):
+            if i == partial:
+                pass
+            else:
+                if self.ent_type == EntType.DEPHASED:
+                    prod *= fids[i] - 1/2
+                elif self.ent_type == EntType.WERNER:
+                    prod *= fids[i] - 1/4
+                else:
+                    raise ValueError('ent_type must be DEPHASED or WERNER')
+                
+        return prod
 
-    def swap_grad(self, f1, f2, partial):
+    def swap_grad(self, f1, f2, partial) -> 'FidType':
         if self.ent_type == EntType.DEPHASED:
             return self._swap_dephased_grad(f1, f2, partial)
         elif self.ent_type == EntType.WERNER:
@@ -96,7 +119,7 @@ class Operation:
         else:
             raise ValueError('ent_type must be DEPHASED or WERNER')
 
-    def purify(self, f1, f2) -> 'tuple[float, float]':
+    def purify(self, f1, f2) -> 'OpResultType':
         if self.ent_type == EntType.DEPHASED:
             return self._purify_dephased(f1, f2)
         elif self.ent_type == EntType.WERNER:
@@ -104,13 +127,13 @@ class Operation:
         else:
             raise ValueError('ent_type must be DEPHASED or WERNER')
     
-    def seq_purify(self, fs):
-        f = fs[0]
-        for i in range(1, len(fs)):
-            f, p = self.purify(f, fs[i])
-        return f, p
+    def seq_purify(self, fids) -> 'OpResultType':
+        f = fids[0]
+        for i in range(1, len(fids)):
+            f, p = self.purify(f, fids[i])
+        return f
 
-    def purify_grad(self, f1, f2, partial):
+    def purify_grad(self, f1, f2, partial) -> 'FidType':
         if self.ent_type == EntType.DEPHASED:
             f = self._purify_dephased_grad(f1, f2, partial)
         elif self.ent_type == EntType.WERNER:
@@ -120,18 +143,18 @@ class Operation:
         
         return f
 
-    def _swap_dephased(self, f1, f2) -> float:
+    def _swap_dephased(self, f1, f2) -> FidType:
         f = f1*f2 + (1-f1)*(1-f2)
         return f
     
-    def _swap_werner(self, f1, f2) -> float:
+    def _swap_werner(self, f1, f2) -> FidType:
         p = self.hw.p
         eta = self.hw.eta
         
         f = 1/4 + (1/36) * p * (4*eta**2-1) * (4*f1 - 1) * (4*f2 - 1)
         return f
 
-    def _swap_dephased_grad(f1, f2, partial) -> float:
+    def _swap_dephased_grad(f1, f2, partial) -> FidType:
         if partial == 1:
             grad = f2 - (1-f2)
         elif partial == 2:
@@ -140,7 +163,7 @@ class Operation:
             raise ValueError('partial must be 1 or 2')
         return grad
 
-    def _swap_werner_grad(self, f1, f2, partial) -> float:
+    def _swap_werner_grad(self, f1, f2, partial) -> FidType:
         p = self.hw.p
         eta = self.hw.eta
 
@@ -152,12 +175,12 @@ class Operation:
             raise ValueError('p must be 1 or 2')
         return grad
 
-    def _purify_dephased(self, f1, f2) -> 'tuple[float, float]':
+    def _purify_dephased(self, f1, f2) -> 'OpResultType':
         prob = f1 * f2 + (1 - f1) * (1 - f2)
         f = (f1 * f2) / prob
         return f, prob
 
-    def _purify_werner(self, f1, f2) -> 'tuple[float, float]':
+    def _purify_werner(self, f1, f2) -> 'OpResultType':
         e1, e2 = (1-f1)/3, (1-f2)/3
         p = self.hw.p
         eta = self.hw.eta
@@ -169,7 +192,7 @@ class Operation:
         prob = deno
         return f, prob
 
-    def _purify_dephased_grad(f1, f2, partial) -> float:
+    def _purify_dephased_grad(f1, f2, partial) -> FidType:
         deno = ((f1 * f2 + (1 - f1) * (1 - f2)))**2
         if partial == 1:
             nume = f2 * (f1 * f2 + (1 - f1) * (1 - f2)) - f1*f2 * (f2 - (1 - f2))
@@ -181,7 +204,7 @@ class Operation:
         grad = nume / deno
         return grad
     
-    def _purify_werner_grad(self, f1, f2, partial) -> float:
+    def _purify_werner_grad(self, f1, f2, partial) -> FidType:
         e1, e2 = (1-f1)/3, (1-f2)/3
         p = self.hw.p
         eta = self.hw.eta
@@ -208,23 +231,23 @@ class Operation:
 
 
 # Dephased operation, perfect
-DOPP = Operation(EntType.DEPHASED, HWP)
+GDP = Gate(EntType.DEPHASED, HWP)
 # Werner operation, perfect
-WOPP = Operation(EntType.WERNER, HWP)
+GWP = Gate(EntType.WERNER, HWP)
 # Werner operation, noisy, high accuracy
-WOPH = Operation(EntType.WERNER, HWH)
+GWH = Gate(EntType.WERNER, HWH)
 # Werner operation, noisy, medium accuracy
-WOPM = Operation(EntType.WERNER, HWM)
+GWM = Gate(EntType.WERNER, HWM)
 # Werner operation, noisy, low accuracy
-WOPL = Operation(EntType.WERNER, HWL)
+GWL = Gate(EntType.WERNER, HWL)
 
 
 
 
 if __name__ == '__main__':
-    wsys = Operation(EntType.WERNER, HW((0.99, 0.99, 0.99, 0.9)))
-    wsys_noiseless = Operation(EntType.WERNER, HW((1, 1, 1, 1)))
-    dsys = Operation(EntType.DEPHASED, HW((1, 1, 1, 1)))
+    wsys = Gate(EntType.WERNER, HWParam((0.99, 0.99, 0.99, 0.9)))
+    wsys_noiseless = Gate(EntType.WERNER, HWParam((1, 1, 1, 1)))
+    dsys = Gate(EntType.DEPHASED, HWParam((1, 1, 1, 1)))
     op = wsys
     
     f1, f2, f3, f4 = 0.9, 0.9, 0.9, 0.9

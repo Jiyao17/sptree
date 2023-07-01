@@ -2,14 +2,15 @@
 import copy
 from abc import ABC, abstractmethod
 
+import numpy as np
+
 import gurobipy as gp
 from gurobipy import GRB
 
-import numpy as np
+from physical.network import QuNet, QuNetTask, Edge, EdgeTuple, NodeID, NodePair, Path, StaticPath
+import physical.quantum as qu
+from sps.solver import test_TreeSolver, test_GRDSolver, test_EPPSolver, SolverType
 
-from network.network import NodeID, NodePair, EdgeTuple, StaticPath
-from network.network import BufferedNode, Edge, QuNetTask, QuNet
-from physical.quantum import EntType, HW, Operation
 
 
 class ObjType:
@@ -55,9 +56,9 @@ class QuNetOptim:
         # all edges, [EdgeTuple]
         self.params['E']: 'list[EdgeTuple]' = []
         # capacity of each edge, {e: capacity}
-        self.params['EC']: 'dict[EdgeTuple, int]' = {}
+        self.params['EC']: 'dict[EdgeTuple, qu.ExpCostType]' = {}
         for (u, v, obj) in self.task.qunet.net.edges.data('obj'):
-            edge_tuple: EdgeTuple = (u, v, 0)
+            edge_tuple: EdgeTuple = (u, v)
             self.params['E'].append(edge_tuple)
             self.params['EC'][edge_tuple] = obj.capacity
         self.E = self.params['E']
@@ -104,23 +105,32 @@ class QuNetOptim:
 
         return self.params
 
-    def path_prep(self,) -> 'tuple[int, int]':
+    def path_prep(self, solver_type: SolverType) -> 'tuple[int, int]':
         # path allocations
-        self.params['A']: 'dict[tuple[NodePair, StaticPath, EdgeTuple], int]' = {}
+        self.params['A']: 'dict[tuple[NodePair, StaticPath, EdgeTuple], qu.ExpCostType]' = {}
         self.A = self.params['A']
+
+        gate = self.qunet.gate
 
         total_pair_num = 0
         total_path_num = 0
         for k in self.K:
             for p in self.P[k]:
-                fids = {}
+                edges: 'dict[EdgeTuple, qu.FidType]' = {}
+                cost_cap = 0
                 for e in p:
-                    edge: Edge = self.task.qunet.net.edges[e[:2]]['obj']
-                    fids[e] = edge.fidelity
-                    
+                    edge: Edge = self.task.qunet.net.edges[e]['obj']
+                    edges[e] = edge.fid
+                    cost_cap += edge.capacity
+                
                 # print(f"fid: {fids}")
                 fth = self.F[k]
-                allocs = [1] * len(p)
+                if solver_type == SolverType.TREE:
+                    f, allocs = test_TreeSolver(edges, gate, fth, cost_cap)
+                elif solver_type == SolverType.GRD:
+                    f, allocs = test_GRDSolver(edges, gate, fth, cost_cap)
+                elif solver_type == SolverType.EPP:
+                    f, allocs = test_EPPSolver(edges, gate, fth, cost_cap)
                 for i, e in enumerate(p):
                     self.A[k, p, e] = allocs[i]
 
@@ -137,7 +147,7 @@ class QuNetOptim:
                     if e in self.EC:
                         edge_capacity = self.EC[e]
                     else:
-                        edge_capacity = self.EC[(e[1], e[0], 0)]
+                        edge_capacity = self.EC[(e[1], e[0])]
                     self.model.addConstr(
                         gp.quicksum(
                             self.x[k, path] * self.A[k, path, e] for e in path) 
@@ -147,15 +157,23 @@ class QuNetOptim:
         # memory capacity
         for node in self.N:
             mem_usage = 0
-            adj_edges = self.task.qunet.net.edges(node, data=True)
+            adj_edges = self.task.qunet.net.edges(node, data=False)
             for k in self.K:
                 for path in self.P[k]:
                     for i, e in enumerate(path):
-                        if e[:2] in adj_edges or (e[1], e[0]) in adj_edges:
+                        if e in adj_edges or (e[1], e[0]) in adj_edges:
                             mem_usage += self.x[k, path] * self.A[k, path, e]
             self.model.addConstr(
                 mem_usage <= self.NC[node],
                 name=f"NC_{node}")
+            
+        # request fulfillment
+        for k in self.K:
+            for path in self.P[k]:
+                self.model.addConstr(
+                    gp.quicksum(self.x[k, path] for path in self.P[k]) 
+                        <= self.W[k],
+                    name=f"RF_{k}_{path}")
 
     def optimize(self, objective: ObjType=ObjType.MAX_THROUGHPUT) -> float:
         if objective == ObjType.FEASIBILITY:
@@ -177,26 +195,28 @@ class QuNetOptim:
 
 def test_QuNetOptim():
     np.random.seed(0)
+    gate = qu.GWH
+    # solver: SolverType = SolverType.TREE
+    # solver: SolverType = SolverType.GRD
+    solver: SolverType = SolverType.EPP
 
-    qunet = QuNet()
-    qunet.net_gen(node_memory=100, edge_capacity=(100, 101), edge_fidelity=(0.9, 1.0))
+
+    qunet = QuNet(gate=gate)
+    qunet.net_gen(node_memory=100, edge_capacity=(26, 35), edge_fidelity=(0.7, 0.95))
     
     task = QuNetTask(qunet)
-    task.set_user_pairs(10)
+    task.set_user_pairs(50)
     # print("All user pairs: \n", task.user_pairs)
     task.set_up_paths(5)
     # print("All rpaths between selected user pairs: \n", task.up_paths)
-    task.workload_gen(fid_range=(0.75, 0.75), request_range=(100, 100))
+    task.workload_gen(fid_range=(0.99, 0.99), request_range=(1, 1))
     # QuNet.draw(qunet.net, "qunet.png")
 
 
 
     optm = QuNetOptim(task)
     optm.import_params()
-    # pair_num, path_num = optm.path_prep(Solver=GRDYSolver, system_type=SystemType.DEPOLARIZED)
-    # pair_num, path_num = optm.path_prep(Solver=OSPSDP, system_type=SystemType.DEPOLARIZED)
-    # pair_num, path_num = optm.path_prep(Solver=EPPSolver, system_type=SystemType.DEPHASED)
-    pair_num, path_num = optm.path_prep()
+    pair_num, path_num = optm.path_prep(solver_type=solver)
     print(f"Total pair number: {pair_num}, total path number: {path_num}")
 
     optm.add_constrs()

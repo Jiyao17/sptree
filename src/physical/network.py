@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from .topology import Topology, ATT, IBM
-from physical.quantum import EntType, HW, Operation
+import physical.quantum as qu
 
 
 # A Quantum Overlay Network (QON) is a directed multi-graph (MultiDiGraph), therefore:
@@ -17,8 +17,10 @@ from physical.quantum import EntType, HW, Operation
 # each node/edge has an associated object (Node/Edge)
 # that contains all the information about the node/edge
 NodeID = NewType('NodeID', int)
+KeyID = NewType('KeyID', int)
 NodePair = NewType('NodePair', tuple[NodeID, NodeID])
 EdgeTuple = NewType('EdgeTuple', tuple[NodeID, NodeID])
+MultiEdgeTuple = NewType('MultiEdgeTuple', tuple[NodeID, NodeID, KeyID])
 StaticPath = NewType('StaticPath', tuple[EdgeTuple])
 Path = NewType('Path', list[EdgeTuple])
 
@@ -58,13 +60,13 @@ class Edge:
             ):
         self.src_node = src_id
         self.dst_node = dst_id
-        self.fidelity = fidelity
+        self.fid = fidelity
         self.capacity = capacity
         self.edge_tuple: EdgeTuple = (src_id, dst_id)
         
     def __str__(self):
         desc = f'Edge {self.edge_tuple}: '
-        desc += f'(fid, cap) = ({self.fidelity}, capacity={self.capacity}) '
+        desc += f'(fid, cap) = ({self.fid}, capacity={self.capacity}) '
         return desc
 
 
@@ -105,7 +107,7 @@ class QuNet:
             path = []
             # remove the edges in the path
             for i in range(len(path_nodes)-1):
-                edge_tuple = (path_nodes[i], path_nodes[i+1], 0)
+                edge_tuple = (path_nodes[i], path_nodes[i+1])
                 path.append(edge_tuple)
                 tnet.remove_edge(edge_tuple[0], edge_tuple[1])
 
@@ -113,8 +115,9 @@ class QuNet:
 
         return paths
 
-    def __init__(self, topology: Topology=ATT()):
+    def __init__(self, topology: Topology=ATT(), gate: qu.Gate=qu.GDP):
         self.topology = topology
+        self.gate = gate
 
         # real network, without virtual edges among QMs
         self.net = nx.Graph()

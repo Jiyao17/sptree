@@ -18,7 +18,7 @@ class Node:
         Node.node_id += 1
         return Node.node_id
 
-    def __init__(self, edge_tuple: EdgeTuple, fidelity: float,
+    def __init__(self, edge_tuple: EdgeTuple, fid: qu.FidType,
                 parent=None, left=None, right=None, node_id=None) -> None:
         # node info
         if node_id is None:
@@ -27,7 +27,7 @@ class Node:
             assert node_id > Node.node_id
             self.node_id = node_id
         self.edge_tuple: EdgeTuple = edge_tuple
-        self.fidelity: float = fidelity
+        self.fid: qu.FidType = fid
 
         # tree structure
         self.parent: Node = parent
@@ -35,8 +35,9 @@ class Node:
         self.right: Node = right
 
         # optimization info
-        self.cost: float = 1
-        self.grad: float = 1
+        self.cost: qu.ExpCostType = 1
+        self.grad_f: qu.FidType = 1
+        self.grad_c: qu.ExpCostType = 1
         self.efficiency: float = 1
         self.adjust: float = 1
         self.adjust_eff: float = 1
@@ -51,10 +52,10 @@ class Node:
     def __str__(self) -> str:
         s = f'{self.node_id} {self.edge_tuple}: '
         if self.is_root():
-            s += f'f={self.fidelity}, '
+            s += f'f={self.fid}, '
         # keep 2 decimal places
         else:
-            s += f'f={self.fidelity:.2f}, '
+            s += f'f={self.fid:.2f}, '
 
         # s += f'g={self.grad:.5f}, e={self.efficiency:.5f}, a={self.adjust:.5f}, ae={self.adjust_eff:.5f}'
 
@@ -66,9 +67,9 @@ class Leaf(Node):
     Leaf Node in the SPS Tree
     """
 
-    def __init__(self, edge_tuple: EdgeTuple, fidelity: float,
+    def __init__(self, edge_tuple: EdgeTuple, fid: qu.FidType,
                     parent: Node,) -> None:
-        super().__init__(edge_tuple, fidelity, parent, None, None)
+        super().__init__(edge_tuple, fid, parent, None, None)
 
 
     def __str__(self) -> str:
@@ -82,12 +83,15 @@ class Branch(Node):
     Branch Node in the SPS Tree
     """
 
-    def __init__(self, edge_tuple: EdgeTuple, fidelity: float, 
+    def __init__(self, edge_tuple: EdgeTuple, fid: qu.FidType, 
                 parent: Node, left: Node, right: Node,
-                op: qu.OpType.SWAP) -> None:
-        super().__init__(edge_tuple, fidelity, parent, left, right)
+                op: qu.OpType, prob: float) -> None:
+        super().__init__(edge_tuple, fid, parent, left, right)
 
         self.op: qu.OpType = op
+        self.prob: float = prob
+
+        self.cost = (self.left.cost + self.right.cost) / self.prob
     
     def __str__(self) -> str:
         # keep 2 decimal places
@@ -106,7 +110,7 @@ class MetaTree(ABC):
     def grad(node: Node) -> float:
         pass
 
-    def __init__(self, leaves: 'dict[EdgeTuple, float]', op: 'qu.Operation'=qu.DOPP) -> None:
+    def __init__(self, leaves: 'dict[EdgeTuple, float]', op: 'qu.Gate'=qu.GDP) -> None:
         self.leaves = leaves
         self.op = op
 
@@ -116,7 +120,7 @@ class MetaTree(ABC):
         self.root = None
 
     @abstractmethod
-    def build_tree(self, shape=Shape.BALANCED) -> Node:
+    def build_sst(self, shape=Shape.BALANCED) -> Node:
         pass
 
 
@@ -127,12 +131,107 @@ class SPST(MetaTree):
     both swap and purification are binary operators
     """
 
-    def __init__(self, leaves: 'dict[EdgeTuple, float]', op: 'qu.Operation'=qu.DOPP) -> None:
+    @staticmethod
+    def print_tree(root=None, indent=0):
+        root: Node = root # type hinting here
+        if root is None:
+            return
+        print('  ' * indent + str(root))
+        SPST.print_tree(root.left, indent + 1)
+        SPST.print_tree(root.right, indent + 1)
+
+    @staticmethod
+    def copy_subtree(node: Node) -> Node:
+        """
+        Be aware: all nodes in the copy keep the same node_id
+        """
+        if node is None:
+            return None
+        parent = node.parent
+        node.parent = None
+        new_node = deepcopy(node)
+        node.parent = parent
+        return new_node
+
+    @staticmethod
+    def find_max(node: Node, attr: str="adjust_eff", search_range=[Node]) -> Node:
+        """
+        find the node with max attr in the subtree
+        attr: must be a member of Node
+        """
+        def in_range(node: Node, range: 'list') -> bool:
+            for type in range:
+                if isinstance(node, type):
+                    return True
+            return False
+
+        if node is None:
+            return None
+        if node.is_leaf():
+            if in_range(node, search_range):
+                return node
+            else:
+                return None
+        
+        candidates = []
+        if in_range(node, search_range):
+            candidates.append(node)
+        left = SPST.find_max(node.left, attr, search_range)
+        if in_range(left, search_range):
+            candidates.append(left)
+        right = SPST.find_max(node.right, attr, search_range)
+        if in_range(right, search_range):
+            candidates.append(right)
+
+        if len(candidates) == 0:
+            return None
+        
+        max_node = candidates[0]
+        for node in candidates:
+            if getattr(node, attr) > getattr(max_node, attr):
+                max_node = node        
+        return max_node
+
+        # if getattr(left, attr) > getattr(right, attr):
+        #     return left
+        # else:
+        #     return right
+
+    @staticmethod
+    def build_pst(gate: qu.Gate, edge: EdgeTuple, fid: qu.FidType, num: int, 
+            shape=MetaTree.Shape.LINKED, ) -> Node:
+        """
+        Build the PST
+        """
+        # sort the edges by fidelity
+        # edges = sorted(self.leaves.items(), key=lambda x: x[1], reverse=True)
+        def _build_linked(leaves: 'list[Node]') -> Node:
+            current_nodes: 'list[Node]' = leaves
+            while len(current_nodes) > 1:
+                node1, node2 = current_nodes.pop(0), current_nodes.pop(0)
+                f, p = gate.purify(node1.fid, node2.fid)
+                edge = deepcopy(node1.edge_tuple)
+                new_node = Branch(edge, f, None, node1, node2, qu.OpType.PURIFY, p)
+                new_node.cost = (node1.cost + node2.cost) / p
+                node1.parent = new_node
+                node2.parent = new_node
+                current_nodes.insert(0, new_node)
+
+            return current_nodes[0]
+
+        leaves = [Leaf(edge, fid, None) for i in range(num)]
+
+        if shape == MetaTree.Shape.LINKED:
+            root = _build_linked(leaves)
+        else:
+            raise NotImplementedError('shape not implemented')
+
+        return root
+
+    def __init__(self, leaves: 'dict[EdgeTuple, qu.FidType]', op: 'qu.Gate'=qu.GDP) -> None:
         super().__init__(leaves, op)
 
-        self.root = self.build_tree()
-
-    def build_tree(self, shape=MetaTree.Shape.BALANCED) -> Node:
+    def build_sst(self, shape=MetaTree.Shape.BALANCED, costs: 'list[qu.ExpCostType]'=None) -> Node:
         """
         Build the SPST
         """
@@ -147,10 +246,11 @@ class SPST(MetaTree):
                 # merge nodes in current round
                 while len(current_nodes) >= 2:
                     node1, node2 = current_nodes.pop(0), current_nodes.pop(0)
-                    f1, f2 = node1.fidelity, node2.fidelity
+                    f1, f2 = node1.fid, node2.fid
                     f, p = self.op.swap(f1, f2)
                     edge = (node1.edge_tuple[0], node2.edge_tuple[1])
-                    new_node = Branch(edge, f, None, node1, node2, qu.OpType.SWAP)
+                    new_node = Branch(edge, f, None, node1, node2, qu.OpType.SWAP, p)
+                    new_node.cost = (node1.cost + node2.cost) / p
                     node1.parent = new_node
                     node2.parent = new_node
                     next_nodes.append(new_node)
@@ -167,20 +267,144 @@ class SPST(MetaTree):
         # edges = sorted(self.leaves.items(), key=lambda x: x[1], reverse=True)
         leaves = [Leaf(edge, fidelity, None) for edge, fidelity 
                     in zip(self.edges, self.fids)]
+        if costs is not None:
+            for leaf, cost in zip(leaves, costs):
+                leaf.cost = cost
 
         if shape == MetaTree.Shape.BALANCED:
-            root = _build_balanced(leaves)
+            self.root = _build_balanced(leaves)
         else:
             raise NotImplementedError('shape not implemented')
 
-        return root
+        return self.root
+
+    def grad(self, node: Node, grad_f: qu.FidType=1) -> None:
+        """
+        Calculate the grads of all descendants, wrt the given node
+        self_grad is the grad of the node itself (from its parent)
+        """
+        
+        if node.is_root():
+            node.grad_f = grad_f
+        if node.is_leaf():
+            return
+        assert isinstance(node, Branch), 'Must grad from a Branch'
+            
+        # calculate the grads of children
+        f1, f2 = node.left.fid, node.right.fid
+        if node.op == qu.OpType.SWAP:
+            fg1 = self.op.swap_grad(f1, f2, 1) * grad_f
+            fg2 = self.op.swap_grad(f1, f2, 2) * grad_f
+        elif node.op == qu.OpType.PURIFY:
+            fg1 = self.op.purify_grad(f1, f2, 1) * grad_f
+            fg2 = self.op.purify_grad(f1, f2, 2) * grad_f
+        
+        # update the grads of children
+        node.left.grad_f = fg1
+        node.right.grad_f = fg2
+
+        # recursively update the grads of descendants
+        self.grad(node.left, fg1)
+        self.grad(node.right, fg2)
+
+    def backward(self, node: Branch) -> None:
+        """
+        update fidelity of all ancestors (not including itself)
+        backtrace from node to root
+        """
+        
+        # cannot and shouldn't update fidelity of a leaf node
+        assert isinstance(node, Branch), 'Must backtrace from a Branch'
+
+        node = node.parent
+        while node is not None:
+            if node.op == qu.OpType.SWAP:
+                node.fid, node.prob = self.op.swap(node.left.fid, node.right.fid)
+            elif node.op == qu.OpType.PURIFY:
+                node.fid, node.prob = self.op.purify(node.left.fid, node.right.fid)
+            node.cost = (node.left.cost + node.right.cost) / node.prob
+            
+            node = node.parent
+
+    def virtual_purify(self, node: Node) -> 'tuple[qu.FidType, qu.ExpCostType]':
+        """
+        backtrace the impact of an purification to the root
+        return the fidelity and cost of the root
+        """
+        
+        # get f, c after the purification
+        old_f, old_c = node.fid, node.cost
+        f, p = self.op.purify(old_f, old_f)
+        c = (old_c + old_c) / p
+        while node.parent is not None:
+            # process node.parent at each iteration
+            if node == node.parent.left:
+                fl, fr = f, node.parent.right.fid
+                cl, cr = c, node.parent.right.cost
+            else:
+                fl, fr = node.parent.left.fid, f
+                cl, cr = node.parent.left.cost, c
+            node = node.parent
+            assert isinstance(node, Branch), 'Must backtrace from a Branch'
+            # -------prepare fl, fr, cl, cr above -------
+
+            if node.op == qu.OpType.SWAP:
+                f, p = self.op.swap(fl, fr)
+            elif node.op == qu.OpType.PURIFY:
+                f, p = self.op.purify(fl, fr)
+            c = (cl + cr) / p
+
+        return f, c
+
+    def purify(self, node: Node) -> Branch:
+        """
+        purify a node in the tree
+        return the new node (parent of the given node and node's copy)
+        """
+        parent = node.parent
+
+        copy_node = self.copy_subtree(node)
+        f1, f2 = node.fid, copy_node.fid
+        fid, prob = self.op.purify(f1, f2)
+        edge = deepcopy(node.edge_tuple)
+        new_node = Branch(edge, fid, parent, copy_node, node, qu.OpType.PURIFY, prob)
+
+        copy_node.parent = new_node
+        node.parent = new_node
+        if parent is not None:
+            if parent.left == node:
+                parent.left = new_node
+            else:
+                parent.right = new_node
+        else:
+            self.root = new_node
+
+        return new_node
+
+    def calc_efficiency(self, node: Node):
+        """
+        Calculate the efficiency of all descendants, wrt the given node
+        """
+        if node is None:
+            return
+
+        # calculate the efficiency
+        node.efficiency = node.grad_f / node.cost
+        # calculate adjusted efficiency
+        rf, rc = self.virtual_purify(node)
+        node.adjust_eff = (rf - self.root.fid) / (rc - self.root.cost)
+        # node.adjust_eff = (rf - self.root.fid) 
+        
+        # recursively calculate the efficiency of descendants
+        self.calc_efficiency(node.left)
+        self.calc_efficiency(node.right)
 
 
 def test_SST():
-    from physical.quantum import Operation, EntType, HW
-    wsys_n = Operation(EntType.WERNER, qu.HWM)
-    wsys = Operation(EntType.WERNER)
-    dsys = Operation(EntType.DEPHASED)
+    from physical.quantum import Gate, EntType, HWParam
+    wsys_n = Gate(EntType.WERNER, qu.HWM)
+    wsys = Gate(EntType.WERNER)
+    dsys = Gate(EntType.DEPHASED)
     op = wsys_n
     
     f1, f2, f3, f4 = 0.9, 0.9, 0.9, 0.9
@@ -217,10 +441,10 @@ def test_SST():
     print(en)
 
 def test_PST():
-    from physical.quantum import Operation, EntType, HW
-    wsys_n = Operation(EntType.WERNER, qu.HWM)
-    wsys = Operation(EntType.WERNER)
-    dsys = Operation(EntType.DEPHASED)
+    from physical.quantum import Gate, EntType, HWParam
+    wsys_n = Gate(EntType.WERNER, qu.HWM)
+    wsys = Gate(EntType.WERNER)
+    dsys = Gate(EntType.DEPHASED)
     op = dsys
     
     f1, f2, f3, f4 = 0.9, 0.9, 0.9, 0.9
@@ -233,6 +457,8 @@ def test_PST():
     f, p1234 = op.purify(f12, f34)
     n = (n12 + n34) / p1234
     print(f, n)
+    n = 0
+    n += 1/p1234 * n12 / p12 * (1 + 1)
 
     f12, p12 = op.purify(f1, f2)
     n12 = 2/p12
@@ -258,12 +484,12 @@ def test_PST():
     print(f)
 
 def test_SPP_PSS():
-    from physical.quantum import Operation, EntType, HW
+    from physical.quantum import Gate, EntType, HWParam
     import numpy as np
 
-    wsys_n = Operation(EntType.WERNER, qu.HWM)
-    wsys = Operation(EntType.WERNER)
-    dsys = Operation(EntType.DEPHASED)
+    wsys_n = Gate(EntType.WERNER, qu.HWM)
+    wsys = Gate(EntType.WERNER)
+    dsys = Gate(EntType.DEPHASED)
     op = wsys
     
     f1, f2, f3, f4 = np.random.rand(4) * 0.5 + 0.5
@@ -277,6 +503,14 @@ def test_SPP_PSS():
     f, p1234 = op.swap(f12, f34)
     C_SPP = (n12 + n34) / p1234
     print(f, C_SPP)
+    sn1 = 1 / p1234 / p12 * n1
+    sn2 = 1 / p1234 / p12 * n2
+    sn3 = 1 / p1234 / p34 * n3
+    sn4 = 1 / p1234 / p34 * n4
+    print(n1, n2, n3, n4)
+    print(sn1, sn2, sn3, sn4)
+    print(sum([sn1, sn2, sn3, sn4]))
+
 
     f13, p13 = op.swap(f1, f3)
     n13 = (n1 + n3)/p13
@@ -288,6 +522,7 @@ def test_SPP_PSS():
     print(f, C_PSS)
 
     # assert C_SPP <= C_PSS
+
 
 if __name__ == '__main__':
     # test_SST()

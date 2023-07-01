@@ -1,7 +1,7 @@
 
 from network.network import QuNet, QuNetTask, EdgeTuple
 from solver.spst import GRDYSolver
-from physical.quantum import Operation
+from physical.quantum import Gate
 
 
 class Hammock:
@@ -21,7 +21,7 @@ class Hammock:
         if width <= 0:
             return
         
-        solver = GRDYSolver(edges, Operation())
+        solver = GRDYSolver(edges, Gate())
         f, allocs = solver.solve(fth=0.9)
         
         edges = list(edges.keys())
