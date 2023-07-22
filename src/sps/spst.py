@@ -37,7 +37,8 @@ class Node:
         # optimization info
         self.cost: qu.ExpCostType = 1
         self.grad_f: qu.FidType = 1
-        self.grad_c: qu.ExpCostType = 1
+        self.grad_cn: qu.ExpCostType = 1
+        self.grad_cf: qu.ExpCostType = 1
         self.efficiency: float = 1
         self.adjust: float = 1
         self.adjust_eff: float = 1
@@ -112,7 +113,7 @@ class MetaTree(ABC):
 
     def __init__(self, leaves: 'dict[EdgeTuple, float]', op: 'qu.Gate'=qu.GDP) -> None:
         self.leaves = leaves
-        self.op = op
+        self.gate = op
 
         self.edges = list(self.leaves.keys())
         self.fids = list(self.leaves.values())
@@ -147,10 +148,26 @@ class SPST(MetaTree):
         """
         if node is None:
             return None
+        
         parent = node.parent
         node.parent = None
+        # new_node = deepcopy(node)
+        # node.parent = parent
+        # lc = node.left
+        # rc = node.right
+        
+        # prevent infinite recursion
+        # node.parent = None
+        # node.left = None
+        # node.right = None
         new_node = deepcopy(node)
         node.parent = parent
+        # node.left = lc
+        # node.right = rc
+
+        # new_node.left = SPST.copy_subtree(node.left)
+        # new_node.right = SPST.copy_subtree(node.right)
+        
         return new_node
 
     @staticmethod
@@ -247,7 +264,7 @@ class SPST(MetaTree):
                 while len(current_nodes) >= 2:
                     node1, node2 = current_nodes.pop(0), current_nodes.pop(0)
                     f1, f2 = node1.fid, node2.fid
-                    f, p = self.op.swap(f1, f2)
+                    f, p = self.gate.swap(f1, f2)
                     edge = (node1.edge_tuple[0], node2.edge_tuple[1])
                     new_node = Branch(edge, f, None, node1, node2, qu.OpType.SWAP, p)
                     new_node.cost = (node1.cost + node2.cost) / p
@@ -278,34 +295,53 @@ class SPST(MetaTree):
 
         return self.root
 
-    def grad(self, node: Node, grad_f: qu.FidType=1) -> None:
+    def grad(self, node: Branch, grad_f: qu.FidType=1, 
+            grad_cn: qu.ExpCostType=1, grad_cf: qu.ExpCostType=1) -> None:
         """
         Calculate the grads of all descendants, wrt the given node
         self_grad is the grad of the node itself (from its parent)
         """
+        def grad_root():
+            # f, c = node.fid, node.cost
+            # gf, gcn, gcf = self.gate.purify_grad(f, f, c, c, 1)
+            
+            node.grad_f, node.grad_cn, node.grad_cf = 1, 1, 1
+            self.grad(node.left, 1, 1, 1)
+            self.grad(node.right, 1, 1, 1)
+        
+        def grad_branch():
+            # calculate the grads of children
+            f1, f2 = node.left.fid, node.right.fid
+            c1, c2 = node.left.cost, node.right.cost
+            if node.op == qu.OpType.SWAP:
+                gf1, gcn1, gcf1 = self.gate.swap_grad(f1, f2, 1)
+                gf1, gcn1, gcf1 = gf1*grad_f, gcn1*grad_cn, gcf1*grad_cf        
+                gf2, gcn2, gcf2 = self.gate.swap_grad(f1, f2, 2)
+                gf2, gcn2, gcf2 = gf2*grad_f, gcn2*grad_cn, gcf2*grad_cf
+            elif node.op == qu.OpType.PURIFY:
+                gf1, gcn1, gcf1 = self.gate.purify_grad(f1, f2, c1, c2, 1) 
+                gf1, gcn1, gcf1 = gf1*grad_f, gcn1*grad_cn, gcf1*grad_cf
+                gf2, gcn2, gcf2 = self.gate.purify_grad(f1, f2, c1, c2, 2) 
+                gf2, gcn2, gcf2 = gf2*grad_f, gcn1*grad_cn, gcf1*grad_cf
+            
+            # update the grads of children
+            node.left.grad_f = gf1
+            node.left.grad_cn = gcn1
+            node.left.grad_cf = gcf1
+            node.right.grad_f = gf2
+            node.right.grad_cn = gcn2
+            node.right.grad_cf = gcf2
+            # recursively update the grads of descendants
+            self.grad(node.left, gf1, gcn1, gcf1)
+            self.grad(node.right, gf2, gcn2, gcf2)
+
+        if node is None or node.is_leaf():
+            return
         
         if node.is_root():
-            node.grad_f = grad_f
-        if node.is_leaf():
-            return
-        assert isinstance(node, Branch), 'Must grad from a Branch'
-            
-        # calculate the grads of children
-        f1, f2 = node.left.fid, node.right.fid
-        if node.op == qu.OpType.SWAP:
-            fg1 = self.op.swap_grad(f1, f2, 1) * grad_f
-            fg2 = self.op.swap_grad(f1, f2, 2) * grad_f
-        elif node.op == qu.OpType.PURIFY:
-            fg1 = self.op.purify_grad(f1, f2, 1) * grad_f
-            fg2 = self.op.purify_grad(f1, f2, 2) * grad_f
-        
-        # update the grads of children
-        node.left.grad_f = fg1
-        node.right.grad_f = fg2
-
-        # recursively update the grads of descendants
-        self.grad(node.left, fg1)
-        self.grad(node.right, fg2)
+            grad_root()
+        else:
+            grad_branch()
 
     def backward(self, node: Branch) -> None:
         """
@@ -319,9 +355,9 @@ class SPST(MetaTree):
         node = node.parent
         while node is not None:
             if node.op == qu.OpType.SWAP:
-                node.fid, node.prob = self.op.swap(node.left.fid, node.right.fid)
+                node.fid, node.prob = self.gate.swap(node.left.fid, node.right.fid)
             elif node.op == qu.OpType.PURIFY:
-                node.fid, node.prob = self.op.purify(node.left.fid, node.right.fid)
+                node.fid, node.prob = self.gate.purify(node.left.fid, node.right.fid)
             node.cost = (node.left.cost + node.right.cost) / node.prob
             
             node = node.parent
@@ -334,7 +370,7 @@ class SPST(MetaTree):
         
         # get f, c after the purification
         old_f, old_c = node.fid, node.cost
-        f, p = self.op.purify(old_f, old_f)
+        f, p = self.gate.purify(old_f, old_f)
         c = (old_c + old_c) / p
         while node.parent is not None:
             # process node.parent at each iteration
@@ -349,9 +385,9 @@ class SPST(MetaTree):
             # -------prepare fl, fr, cl, cr above -------
 
             if node.op == qu.OpType.SWAP:
-                f, p = self.op.swap(fl, fr)
+                f, p = self.gate.swap(fl, fr)
             elif node.op == qu.OpType.PURIFY:
-                f, p = self.op.purify(fl, fr)
+                f, p = self.gate.purify(fl, fr)
             c = (cl + cr) / p
 
         return f, c
@@ -365,7 +401,7 @@ class SPST(MetaTree):
 
         copy_node = self.copy_subtree(node)
         f1, f2 = node.fid, copy_node.fid
-        fid, prob = self.op.purify(f1, f2)
+        fid, prob = self.gate.purify(f1, f2)
         edge = deepcopy(node.edge_tuple)
         new_node = Branch(edge, fid, parent, copy_node, node, qu.OpType.PURIFY, prob)
 
@@ -391,11 +427,17 @@ class SPST(MetaTree):
         # calculate the efficiency
         node.efficiency = node.grad_f / node.cost
         # calculate adjusted efficiency
-        rf, rc = self.virtual_purify(node)
-        node.adjust_eff = (rf - self.root.fid) / (rc - self.root.cost)
-        # node.adjust_eff = (rf - self.root.fid) 
-        
-        # recursively calculate the efficiency of descendants
+        # virtual purify method
+        # rf, rc = self.virtual_purify(node)
+        # df = rf - self.root.fid
+        # dc = rc - self.root.cost
+        # grad method
+        pf, p = self.gate.purify(node.fid, node.fid)
+        df = (pf - node.fid)*node.grad_f
+        dc = (pf - node.fid)*node.grad_cf + node.cost*node.grad_cn
+        node.adjust_eff = df / dc
+
+        # recursive on descendants
         self.calc_efficiency(node.left)
         self.calc_efficiency(node.right)
 
@@ -523,10 +565,45 @@ def test_SPP_PSS():
 
     # assert C_SPP <= C_PSS
 
+def test_grad():
+    gate = qu.GDP
+    f1, f2, f3, f4 = np.random.rand(4) * 0.25 + 0.7
+    n1, n2, n3, n4 = np.round(np.random.rand(4) * 10) + 1
+
+    f12, p12 = gate.purify(f1, f2)
+    n12 = (n1 + n2)/p12
+
+    gf, gcn, gcf = gate.purify_grad(f1, f2, n1, n2, 1)
+
+    f11, p11 = gate.purify(f1, f1)
+    n11 = (n1 + n1)/p11
+
+    df = (f11 - f1) * gf
+    dc = (n11 - n1) * gcn + (f11 - f1) * gcf
+
+    f112, p112 = gate.purify(f11, f2)
+    n112 = (n11 + n2)/p112
+
+    dis_f = f112 - (f12 + df)
+    dis_c = n112 - (n12 + dc)
+    print(dis_f, dis_c)
+
+
+    
+def comments():
+    # if node.is_root():
+    # pf, p = self.gate.purify(node.fid, node.fid)
+    # # c = node.cost*2 / p
+    # # df = pf - node.fid
+    # # dc = c - self.root.cost
+    # df = (pf - node.fid)*node.grad_f
+    # dc = (pf - node.fid)*node.grad_cf + node.cost*node.grad_cn
+    pass
+
 
 if __name__ == '__main__':
     # test_SST()
-    test_PST()
+    # test_PST()
     # for i in range(100):
     #     test_SPP_PSS()
-    
+    pass

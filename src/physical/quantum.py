@@ -111,13 +111,15 @@ class Gate:
                 
         return prod
 
-    def swap_grad(self, f1, f2, partial) -> 'FidType':
+    def swap_grad(self, f1, f2, partial,) -> 'tuple[FidType, ExpCostType, ExpCostType]':
         if self.ent_type == EntType.DEPHASED:
-            return self._swap_dephased_grad(f1, f2, partial)
+            grad_f = self._swap_dephased_grad(f1, f2, partial)
         elif self.ent_type == EntType.WERNER:
-            return self._swap_werner_grad(f1, f2, partial)
+            grad_f = self._swap_werner_grad(f1, f2, partial)
         else:
             raise ValueError('ent_type must be DEPHASED or WERNER')
+        grad_cn = 1/self.hw.prob_swap
+        return grad_f, grad_cn, 0
 
     def purify(self, f1, f2) -> 'OpResultType':
         if self.ent_type == EntType.DEPHASED:
@@ -132,16 +134,19 @@ class Gate:
         for i in range(1, len(fids)):
             f, p = self.purify(f, fids[i])
         return f
+    
+    def balanced_purify(self, fids) -> 'OpResultType':
+        assert False, "Not implemented"
 
-    def purify_grad(self, f1, f2, partial) -> 'FidType':
+    def purify_grad(self, f1, f2, n1, n2, partial,) -> 'tuple[FidType, ExpCostType, ExpCostType]':
         if self.ent_type == EntType.DEPHASED:
-            f = self._purify_dephased_grad(f1, f2, partial)
+            grad_f, grad_cn, grad_cf = self._purify_dephased_grad(f1, f2, n1, n2, partial)
         elif self.ent_type == EntType.WERNER:
-            f = self._purify_werner_grad(f1, f2, partial)
+            grad_f, grad_cn, grad_cf = self._purify_werner_grad(f1, f2, n1, n2, partial)
         else:
             raise ValueError('ent_type must be DEPHASED or WERNER')
         
-        return f
+        return grad_f, grad_cn, grad_cf
 
     def _swap_dephased(self, f1, f2) -> FidType:
         f = f1*f2 + (1-f1)*(1-f2)
@@ -154,14 +159,14 @@ class Gate:
         f = 1/4 + (1/36) * p * (4*eta**2-1) * (4*f1 - 1) * (4*f2 - 1)
         return f
 
-    def _swap_dephased_grad(f1, f2, partial) -> FidType:
+    def _swap_dephased_grad(self, f1, f2, partial) -> FidType:
         if partial == 1:
-            grad = f2 - (1-f2)
+            grad_f = f2 - (1-f2)
         elif partial == 2:
-            grad = f1 - (1-f1)
+            grad_f = f1 - (1-f1)
         else:
             raise ValueError('partial must be 1 or 2')
-        return grad
+        return grad_f
 
     def _swap_werner_grad(self, f1, f2, partial) -> FidType:
         p = self.hw.p
@@ -189,22 +194,27 @@ class Gate:
         deno = (eta**2 + (1-eta)**2)*(f1*f2 + f1*e2 + f2*e1 + 5*e1*e2) + 2*eta*(1-eta)*(2*f1*e2 + 2*f2*e1 + 4*e1*e2) + (1-p**2)/(2*p**2)
         
         f = nume / deno
-        prob = deno
+        prob = deno * p**2
         return f, prob
 
-    def _purify_dephased_grad(f1, f2, partial) -> FidType:
+    def _purify_dephased_grad(self, f1, f2, n1, n2, partial) \
+            -> 'tuple[FidType, ExpCostType, ExpCostType]':
         deno = ((f1 * f2 + (1 - f1) * (1 - f2)))**2
         if partial == 1:
-            nume = f2 * (f1 * f2 + (1 - f1) * (1 - f2)) - f1*f2 * (f2 - (1 - f2))
+            nume_f = f2 * (f1 * f2 + (1 - f1) * (1 - f2)) - f1*f2 * (f2 - (1 - f2))
+            grad_cf = (n1+n2)*(-1/deno)*(2*f2 - 1)
         elif partial == 2:
-            nume = f1 * (f1 * f2 + (1 - f1) * (1 - f2)) - f1*f2 * (f1 - (1 - f1))
+            nume_f = f1 * (f1 * f2 + (1 - f1) * (1 - f2)) - f1*f2 * (f1 - (1 - f1))
+            grad_cf = (n1+n2)*(-1/deno)*(2*f1 - 1)
         else:
             raise ValueError('partial must be 1 or 2')
         
-        grad = nume / deno
-        return grad
+        grad_cn = 1/(f1 * f2 + (1 - f1) * (1 - f2))
+        grad_f = nume_f / deno
+        return grad_f, grad_cn, grad_cf
     
-    def _purify_werner_grad(self, f1, f2, partial) -> FidType:
+    def _purify_werner_grad(self, f1, f2, n1, n2, partial) \
+            -> 'tuple[FidType, ExpCostType, ExpCostType]':
         e1, e2 = (1-f1)/3, (1-f2)/3
         p = self.hw.p
         eta = self.hw.eta
@@ -219,15 +229,18 @@ class Gate:
             p_nume_purify_1 = eta_m*(f2 - (1/3)*e2) + 2*eta*(1-eta)*(e2-1/3*f2)
             p_deno_purify_1 = eta_m*(f2 + e2 -1/3*f2 - (5/3)*e2) + 2*eta*(1-eta)*(2*e2 - 2/3*f2 - 4/3*e2)
             nume = p_nume_purify_1 * deno_purify - nume_purify * p_deno_purify_1
+            grad_cf = (n1+n2)*(-1/deno)*(p**2*p_deno_purify_1)
         elif partial == 2:
             p_nume_purify_2 = eta_m*(f1 - (1/3)*e1) + 2*eta*(1-eta)*(e1-1/3*f1)
             p_deno_purify_2 = eta_m*(f1 + e1 -1/3*f1 - (5/3)*e1) + 2*eta*(1-eta)*(2*e1 - 2/3*f1 - 4/3*e1)
             nume = p_nume_purify_2 * deno_purify - nume_purify * p_deno_purify_2
+            grad_cf = (n1+n2)*(-1/deno)*(p**2*p_deno_purify_2)
         else:
             raise ValueError('p must be 1 or 2')
 
-        grad = nume / deno
-        return grad
+        grad_f = nume / deno
+        grad_cn = 1/deno_purify
+        return grad_f, grad_cn, grad_cf
 
 
 # Dephased operation, perfect
