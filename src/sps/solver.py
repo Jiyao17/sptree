@@ -70,12 +70,14 @@ class TreeSolver(Solver):
         """
 
         while self.tree.root.fid < fth and self.tree.root.cost < cost_cap:
-            # update the efficiency in the tree
+            self.tree.grad(self.tree.root)
             self.tree.calc_efficiency(self.tree.root)
-            # find the node with the highest gain
             node = SPST.find_max(self.tree.root, attr=attr)
-            f, c = self.tree.virtual_purify(node)
-            if c > cost_cap:
+            # calculate the cost of purifying the node
+            pf, prob = self.gate.purify(node.fid, node.fid)
+            dc = node.cost*node.grad_cn + (pf-node.fid)*node.grad_cf
+            if self.tree.root.cost + dc > cost_cap:
+                # infeasible budget
                 break
             # purify the node
             node = self.tree.purify(node)
