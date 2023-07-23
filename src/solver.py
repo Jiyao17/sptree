@@ -199,27 +199,10 @@ class QuNetOptim:
     
 
 def test_QuNetOptim(
+        task: QuNetTask,
         solver_type=SolverType.TREE, 
-        gate=qu.GWH,
-        topology=ATT(),
-        node_memory=100,
-        edge_capacity=(26, 35),
-        edge_fidelity=(0.7, 0.95),
-        user_pair_num=50,
-        path_num=5,
-        req_num_range=(1, 10),
-        req_fid_range=(0.99, 0.99),
         ):
-    qunet = QuNet(topology, gate)
-    qunet.net_gen(node_memory, edge_capacity, edge_fidelity)
-    
-    task = QuNetTask(qunet)
-    task.set_user_pairs(user_pair_num)
-    # print("All user pairs: \n", task.user_pairs)
-    task.set_up_paths(path_num)
-    # print("All rpaths between selected user pairs: \n", task.up_paths)
-    task.workload_gen(req_num_range, req_fid_range)
-    # QuNet.draw(qunet.net, "qunet.png")
+
 
     optm = QuNetOptim(task)
     optm.import_params()
@@ -234,3 +217,5 @@ def test_QuNetOptim(
     return optm.model.objVal
 
 
+if __name__ == "__main__":
+    test_QuNetOptim()

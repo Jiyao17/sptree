@@ -7,7 +7,7 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .topology import Topology, ATT, IBM
+from .topology import _RealTopo, ATT, IBM
 import physical.quantum as qu
 
 
@@ -115,7 +115,7 @@ class QuNet:
 
         return paths
 
-    def __init__(self, topology: Topology=ATT(), gate: qu.Gate=qu.GDP):
+    def __init__(self, topology: _RealTopo=ATT(), gate: qu.Gate=qu.GDP):
         self.topology = topology
         self.gate = gate
 

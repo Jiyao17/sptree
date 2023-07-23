@@ -14,7 +14,12 @@ def test_edges_gen(edge_num, fid_lb, fid_range):
 
     return edges
 
-def draw_lines(x, ys, labels, xlabel, ylabel, filename):
+def draw_lines(
+    x, ys,
+    labels, xlabel, ylabel,
+    xscale='linear', yscale='linear',
+    xreverse=False, yreverse=False,
+    filename='pic.png'):
     plt.figure()
     plt.rc('font', size=20)
     plt.subplots_adjust(0.18, 0.16, 0.95, 0.96)
@@ -24,6 +29,12 @@ def draw_lines(x, ys, labels, xlabel, ylabel, filename):
 
     plt.xlabel(xlabel, fontsize=20)
     plt.ylabel(ylabel, fontsize=20)
+    plt.xscale(xscale)
+    plt.yscale(yscale)
+    if xreverse:
+        plt.gca().invert_xaxis()
+    if yreverse:
+        plt.gca().invert_yaxis()
     # plt.title(title)
     plt.legend()
     plt.grid(True)
