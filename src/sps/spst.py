@@ -245,8 +245,8 @@ class SPST(MetaTree):
 
         return root
 
-    def __init__(self, leaves: 'dict[EdgeTuple, qu.FidType]', op: 'qu.Gate'=qu.GDP) -> None:
-        super().__init__(leaves, op)
+    def __init__(self, leaves: 'dict[EdgeTuple, qu.FidType]', gate: 'qu.Gate'=qu.GDP) -> None:
+        super().__init__(leaves, gate)
 
     def build_sst(self, shape=MetaTree.Shape.BALANCED, costs: 'list[qu.ExpCostType]'=None) -> Node:
         """

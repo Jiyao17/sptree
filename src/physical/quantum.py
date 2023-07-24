@@ -61,7 +61,7 @@ HWH = HWParam((0.999, 0.999, 0.999, 0.99))
 # noisy hardware, medium accuracy
 HWM = HWParam((0.99, 0.99, 0.99, 0.95))
 # noisy hardware, low accuracy
-HWL = HWParam((0.9, 0.9, 0.9, 0.5))
+HWL = HWParam((0.9, 0.9, 0.9, 0.8))
 
 
 class Gate:

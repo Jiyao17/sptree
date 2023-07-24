@@ -53,12 +53,12 @@ def test_dp_sys(fth, exp_num):
     xlabel = "Number of edges"
     ylabel = "Cost"
     filename = "../data/dp_cost_f={}.png".format(fth)
-    draw_lines(x, ys, labels, xlabel, ylabel, filename)
+    draw_lines(x, ys, labels, xlabel, ylabel, filename=filename)
 
     ys = [times[:, 0], times[:, 1], times[:, 2]]
     ylabel = "Time (s)"
     filename = "../data/dp_time_f={}.png".format(fth)
-    draw_lines(x, ys, labels, xlabel, ylabel, filename)
+    draw_lines(x, ys, labels, xlabel, ylabel, filename=filename)
 
 def comp_wn_sys(fth, exp_num):
     op = qu.GWP
@@ -175,7 +175,7 @@ def test_wn_sys(exp_num):
 
 
 if __name__ == '__main__':
-    test_dp_sys(0.8, 100)
+    # test_dp_sys(0.8, 100)
     test_dp_sys(0.9, 100)
     test_dp_sys(0.99, 100)
     test_dp_sys(0.9999, 100)
