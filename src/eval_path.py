@@ -111,8 +111,6 @@ def comp_wn_sys(fth, exp_num):
     filename = "../data/wn_time_f={}.png".format(fth)
     draw_lines(x, ys, labels, xlabel, ylabel, filename)
 
-
-
 def test_wn(fth, gate, edge_num_range:list, fid_base, fid_range, exp_num, cost_cap):
 
     costs = np.zeros((len(edge_num_range), 1))

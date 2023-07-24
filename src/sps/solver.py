@@ -8,7 +8,7 @@ import numpy as np
 
 from physical.network import EdgeTuple
 import physical.quantum as qu
-from .spst import SPST, Node, Branch
+from .spt import SPST, Node, Branch
 
 
 AllocType = NewType('AllocType', dict[EdgeTuple, qu.BudgetType])
