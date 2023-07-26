@@ -125,7 +125,7 @@ class QuNet:
         self.adjacency = topology.adjacency
 
     def net_gen(self,
-                node_memory=100,
+                node_memory=(50, 100),
                 edge_capacity=(26, 35),
                 edge_fidelity=(0.7, 0.95),
         ):
@@ -138,13 +138,13 @@ class QuNet:
         """
 
         for i, node_id in enumerate(self.nodes):
-            obj=BufferedNode(node_id, node_memory)
+            memory = np.random.randint(node_memory[0], node_memory[1])
+            obj=BufferedNode(node_id, memory)
             self.net.add_node(node_id, obj=obj)
         
         for i, edge in enumerate(self.topology.edges):
             cap = np.random.randint(edge_capacity[0], edge_capacity[1])
             fid = np.random.uniform(edge_fidelity[0], edge_fidelity[1])
-            key = 0
             edge_tuple = (edge[0], edge[1])
             obj = Edge(*edge_tuple, fid, cap)
             self.net.add_edge(edge[0], edge[1], obj=obj)

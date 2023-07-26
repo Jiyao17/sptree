@@ -218,7 +218,9 @@ class GRDSolver(Solver):
                 self.alloc[edge] -= 1
 
             self.alloc[edge_max] += 1
+            print(f_max - f)
             f = f_max
+            
     
     def report(self) -> 'tuple[qu.FidType, ExpAllocType]':
         # introduce probability of success

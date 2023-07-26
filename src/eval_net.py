@@ -20,8 +20,8 @@ def test_dp_tp_by_fth(exp_num):
     # topology=ATT()
     # topology=RandomGNP(100, 0.1)
     topology = RandomPAG(150, 2)
-    node_memory=100
-    edge_capacity=(300, 301)
+    node_memory=(50, 100)
+    edge_capacity=(150, 301)
     # edge_capacity=(100, 101)
     edge_fidelity=(0.7, 0.95)
     user_pair_num=30
@@ -87,7 +87,7 @@ def test_dp_tp_by_fth(exp_num):
 def create_task(
         topology=ATT(),
         gate=qu.GWP,
-        node_memory=100,
+        node_memory=(50, 100),
         edge_capacity=(300, 301),
         edge_fidelity=(0.95, 1),
         user_pair_num=10,
@@ -106,16 +106,24 @@ def create_task(
     return task
 
 
-def test_wn_tp_by_fth(exp_num):
+def test_wn_tp_by_fth(size, exp_num):
     # gate=qu.GDP
-    # topology=ATT()
-    topology=RandomGNP(100, 0.1)
-    # topology = RandomPAG(150, 2)
-    node_memory=100
-    edge_capacity=(300, 301)
+    if size == 'small':
+        topology=ATT()
+    elif size == 'medium':
+        topology=RandomGNP(100, 0.05)
+    elif size == 'large':
+        topology = RandomPAG(150, 2)
+    node_memory=(26, 35)
+    edge_capacity=(100, 101)
     # edge_capacity=(100, 101)
-    edge_fidelity=(0.9, 1)
-    user_pair_num=20
+    edge_fidelity=(0.95, 1)
+    if size == 'small':
+        user_pair_num=13
+    elif size == 'medium':
+        user_pair_num=50
+    elif size == 'large':
+        user_pair_num = 75
     path_num=3
     req_num_range=(10, 10)
     # req_fid_range=(0.99, 0.99)
@@ -123,7 +131,7 @@ def test_wn_tp_by_fth(exp_num):
     gates = [qu.GWP, qu.GWH, qu.GWM, qu.GWL]
     # req_fids = [0.7, 0.8, 0.9, 0.99, 0.999]
     # error = [1e-1, 7.5e-2, 5e-2, 2.5e-2, 1e-2]
-    error = [0.15, 0.125, 0.1, 0.075, 0.05, 0.025]
+    error = [0.15, 0.125, 0.1, 0.075, 0.05]
     # error = [1e-1, 1e-3, 1e-5]
     req_fids = [ 1 - n for n in error]
     tps = np.zeros((len(req_fids), len(gates)))
@@ -137,26 +145,28 @@ def test_wn_tp_by_fth(exp_num):
                 node_memory, edge_capacity, edge_fidelity, 
                 user_pair_num, path_num, 
                 req_num_range, fth)
+            task1, task2, task3 = copy.deepcopy(task), copy.deepcopy(task), copy.deepcopy(task)
             start = time.time()
             ObjVal = test_QuNetOptim(task, SolverType.TREE)
             p_time += time.time() - start
             p_tp += ObjVal
 
-            task.qunet.gate = qu.GWH
+            task1.qunet.gate = qu.GWH
             start = time.time()
-            ObjVal = test_QuNetOptim(task, SolverType.TREE)
+            ObjVal = test_QuNetOptim(task1, SolverType.TREE)
             h_time += time.time() - start
             h_tp += ObjVal
 
-            task.qunet.gate = qu.GWM
+            task2.qunet.gate = qu.GWM
             start = time.time()
-            ObjVal = test_QuNetOptim(task, SolverType.TREE)
+            ObjVal = test_QuNetOptim(task2, SolverType.TREE)
             m_time += time.time() - start
             m_tp += ObjVal
 
-            task.qunet.gate = qu.GWL
+
+            task3.qunet.gate = qu.GWL
             start = time.time()
-            ObjVal = test_QuNetOptim(task, SolverType.TREE)
+            ObjVal = test_QuNetOptim(task3, SolverType.TREE)
             l_time += time.time() - start
             l_tp += ObjVal
 
@@ -170,23 +180,26 @@ def test_wn_tp_by_fth(exp_num):
         print("fidelity {} done".format(fth))
 
     x = error
-    ys = [tps[:, 0], tps[:, 1], tps[:, 2], tps[:, 3]]
+    ys = tps.T
     labels = ["P", "H", "M", "L"]
     xlabel = "Infidelity Threshold"
     ylabel = "Throughput"
-    filename = "../data/wn_net_tp_medium.png"
-    draw_lines(x, ys, labels, xlabel, ylabel, xreverse=True, filename=filename)
+    markers = ['o', 's', 'v', 'x']
+    filename = "../data/net/wn_net_tp_{}.png".format(size)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, xreverse=True, filename=filename)
 
-    ys = [times[:, 0], times[:, 1], times[:, 2]]
+    ys = times.T
     ylabel = "Time (s)"
-    filename = "../data/wn_net_time.png"
-    draw_lines(x, ys, labels, xlabel, ylabel, xreverse=True, filename=filename)
+    filename = "../data/net/wn_net_time_{}.png".format(size)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, xreverse=True, filename=filename)
 
 
 if __name__ == '__main__':
 
     # test_dp_tp_by_fth(5)
-    test_wn_tp_by_fth(5)
+    test_wn_tp_by_fth('small', 100)
+    test_wn_tp_by_fth('medium', 100)
+    test_wn_tp_by_fth('large', 100)
 
 
 
