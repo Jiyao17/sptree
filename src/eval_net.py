@@ -15,17 +15,26 @@ from utils.tools import draw_lines
 
 
 
-def test_dp_tp_by_fth(exp_num):
+def test_dp_tp_by_fth(size, exp_num):
     gate=qu.GDP
-    # topology=ATT()
-    # topology=RandomGNP(100, 0.1)
-    topology = RandomPAG(150, 2)
-    node_memory=(50, 100)
-    edge_capacity=(150, 301)
+    if size == 'small':
+        topology=ATT()
+    elif size == 'medium':
+        topology = RandomGNP(50, 0.1)
+    elif size == 'large':
+        topology=RandomPAG(100, 2)
+
+    node_memory=(100, 101)
+    edge_capacity=(50, 51)
     # edge_capacity=(100, 101)
     edge_fidelity=(0.7, 0.95)
-    user_pair_num=30
-    path_num=3
+    if size == 'small':
+        user_pair_num=13
+    elif size == 'medium':
+        user_pair_num=50
+    elif size == 'large':
+        user_pair_num = 50
+    path_num=5
     req_num_range=(10, 10)
     # req_fid_range=(0.99, 0.99)
 
@@ -72,16 +81,17 @@ def test_dp_tp_by_fth(exp_num):
 
     x = error
     ys = [tps[:, 0], tps[:, 1], tps[:, 2]]
-    labels = ["Tree", "GRDY", "EPP"]
+    labels = ["TREE", "GRDY", "EPP"]
     xlabel = "Infidelity Threshold"
     ylabel = "Throughput"
-    filename = "../data/dp_net_tp_.png"
-    draw_lines(x, ys, labels, xlabel, ylabel, xscale='log', xreverse=True, filename=filename)
+    markers = ['o', 's', 'v']
+    filename = "../data/net/dp_net_tp_{}.png".format(size)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, xscale='log', xreverse=True, filename=filename)
 
     ys = [times[:, 0], times[:, 1], times[:, 2]]
     ylabel = "Time (s)"
-    filename = "../data/dp_net_time.png"
-    draw_lines(x, ys, labels, xlabel, ylabel, xscale='log', xreverse=True, filename=filename)
+    filename = "../data/net/dp_net_time_{}.png".format(size)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, xscale='log', xreverse=True, filename=filename)
 
 
 def create_task(
@@ -111,27 +121,27 @@ def test_wn_tp_by_fth(size, exp_num):
     if size == 'small':
         topology=ATT()
     elif size == 'medium':
-        topology=RandomGNP(100, 0.05)
+        topology=RandomGNP(50, 0.1)
     elif size == 'large':
-        topology = RandomPAG(150, 2)
-    node_memory=(26, 35)
-    edge_capacity=(100, 101)
+        topology = RandomPAG(100, 2)
+    node_memory=(100, 101)
+    edge_capacity=(50, 51)
     # edge_capacity=(100, 101)
     edge_fidelity=(0.95, 1)
     if size == 'small':
         user_pair_num=13
     elif size == 'medium':
-        user_pair_num=50
+        user_pair_num=25
     elif size == 'large':
-        user_pair_num = 75
-    path_num=3
+        user_pair_num = 50
+    path_num=5
     req_num_range=(10, 10)
     # req_fid_range=(0.99, 0.99)
 
     gates = [qu.GWP, qu.GWH, qu.GWM, qu.GWL]
     # req_fids = [0.7, 0.8, 0.9, 0.99, 0.999]
     # error = [1e-1, 7.5e-2, 5e-2, 2.5e-2, 1e-2]
-    error = [0.15, 0.125, 0.1, 0.075, 0.05]
+    error = [0.125, 0.1, 0.075, 0.05, 0.025]
     # error = [1e-1, 1e-3, 1e-5]
     req_fids = [ 1 - n for n in error]
     tps = np.zeros((len(req_fids), len(gates)))
@@ -196,10 +206,22 @@ def test_wn_tp_by_fth(size, exp_num):
 
 if __name__ == '__main__':
 
-    # test_dp_tp_by_fth(5)
-    test_wn_tp_by_fth('small', 100)
-    test_wn_tp_by_fth('medium', 100)
-    test_wn_tp_by_fth('large', 100)
+    # avg_edge_num = 0
+    # for i in range(100):
+    #     topology = RandomGNP(50, 0.1)
+    #     avg_edge_num += len(topology.edges)
+    # print(avg_edge_num / 100)
+
+
+
+
+    test_dp_tp_by_fth('small', 100)
+    test_dp_tp_by_fth('medium', 100)
+    test_dp_tp_by_fth('large', 100)
+
+    # test_wn_tp_by_fth('small', 100)
+    # test_wn_tp_by_fth('medium', 100)
+    # test_wn_tp_by_fth('large', 1)
 
 
 

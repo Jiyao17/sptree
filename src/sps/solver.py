@@ -9,15 +9,18 @@ import numpy as np
 from physical.network import EdgeTuple
 import physical.quantum as qu
 from .spt import SPST, Node, Branch
+from .spt import MetaTree
 
 
 AllocType = NewType('AllocType', dict[EdgeTuple, qu.BudgetType])
 ExpAllocType = NewType('ExpAllocType', dict[EdgeTuple, qu.ExpCostType])
 
+
 class SolverType(Enum):
     TREE = 1
     GRD = 2
     EPP = 3
+
 
 class Solver(ABC):
     def __init__(self, edges: 'dict[EdgeTuple, qu.FidType]', gate: qu.Gate) -> None:
@@ -180,18 +183,32 @@ class DPSolver(Solver):
 
 
 class GRDSolver(Solver):
-    def __init__(self, edges: dict[EdgeTuple, qu.FidType], gate: qu.Gate) -> None:
+    def __init__(self, edges: dict[EdgeTuple, qu.FidType], gate: qu.Gate,
+        swap_shape: MetaTree.Shape=MetaTree.Shape.LINKED,
+        purify_shape: MetaTree.Shape=MetaTree.Shape.LINKED,
+        ) -> None:
+        
         super().__init__(edges, gate)
+        self.swap_shape = swap_shape
+        self.purify_shape = purify_shape
 
     def purify_on_edge(self, fids: list[qu.FidType], allocs: list[int]) -> 'list[qu.FidType]':
         pfids = []
         for i in range(len(fids)):
-            pfids.append(self.gate.seq_purify([fids[i]] * allocs[i]))
+            if self.purify_shape == MetaTree.Shape.LINKED:
+                pfids.append(self.gate.seq_purify([fids[i]] * allocs[i])[0])
+            elif self.purify_shape == MetaTree.Shape.BALANCED:
+                pfids.append(self.gate.balanced_purify([fids[i]] * allocs[i])[0])
+
         return pfids
     
     def swap_purify(self, fids: list[qu.FidType], allocs: list[int]) -> qu.FidType:
         pfids = self.purify_on_edge(fids, allocs)
-        return self.gate.seq_swap(pfids)
+        if self.swap_shape == MetaTree.Shape.LINKED:
+            f, p = self.gate.seq_swap(pfids)
+        elif self.swap_shape == MetaTree.Shape.BALANCED:
+            f, p = self.gate.balanced_swap(pfids)
+        return f, p
 
     def solve(self, fth: qu.FidType, cost_cap: qu.ExpCostType):
         """
@@ -203,14 +220,20 @@ class GRDSolver(Solver):
         for edge in self.edges:
             self.alloc[edge] = 1
         pfids = self.purify_on_edge(self.fids, list(self.alloc.values()))
-        f = self.gate.seq_swap(pfids)
+        if self.swap_shape == MetaTree.Shape.LINKED:
+            f, p = self.gate.seq_swap(pfids)
+        elif self.swap_shape == MetaTree.Shape.BALANCED:
+            f, p = self.gate.balanced_swap(pfids)
         while f < fth and sum(self.alloc.values()) <= cost_cap:
             f_max = 0
             edge_max = 0
             for edge in self.edges:
                 self.alloc[edge] += 1
                 pfids = self.purify_on_edge(self.fids, list(self.alloc.values()))
-                f_new = self.gate.seq_swap(pfids)
+                if self.swap_shape == MetaTree.Shape.LINKED:
+                    f_new, p = self.gate.seq_swap(pfids)
+                elif self.swap_shape == MetaTree.Shape.BALANCED:
+                    f_new, p = self.gate.balanced_swap(pfids)
                 if f_new > f_max:
                     f_max = f_new
                     edge_max = edge
@@ -218,23 +241,22 @@ class GRDSolver(Solver):
                 self.alloc[edge] -= 1
 
             self.alloc[edge_max] += 1
-            print(f_max - f)
+            # print(f_max - f)
             f = f_max
-            
-    
+             
     def report(self) -> 'tuple[qu.FidType, ExpAllocType]':
         # introduce probability of success
         psts: 'list[Node]' = []
         for i, edge in enumerate(self.edges):
             num = int(np.ceil(self.alloc[edge]))
-            pst = SPST.build_pst(self.gate, edge, self.fids[i], num,)
+            pst = SPST.build_pst(self.gate, edge, self.fids[i], num, self.purify_shape)
             psts.append(pst)
 
         pfids = [ pst.fid for pst in psts ]
         pedges = { edge: pfids[i] for i, edge in enumerate(self.edges) }
         tree = SPST(pedges, self.gate)
         costs = [ pst.cost for pst in psts ]
-        tree.build_sst(costs=costs)
+        tree.build_sst(shape=self.swap_shape, costs=costs)
 
         alloc = ExpAllocType({})
         TreeSolver._traverse(tree.root, 1, alloc)
@@ -250,18 +272,31 @@ class GRDSolver(Solver):
 
 
 class EPPSolver(Solver):
-    def __init__(self, edges: dict[EdgeTuple, qu.FidType], gate: qu.Gate) -> None:
+    def __init__(self, edges: dict[EdgeTuple, qu.FidType], gate: qu.Gate,
+        swap_shape: MetaTree.Shape=MetaTree.Shape.LINKED,
+        purify_shape: MetaTree.Shape=MetaTree.Shape.LINKED,
+        ) -> None:
+        self.swap_shape = swap_shape
+        self.purify_shape = purify_shape
+                 
         super().__init__(edges, gate)
 
     def purify_on_edge(self, fids: list[qu.FidType], allocs: list[int]) -> 'list[qu.FidType]':
         pfids = []
         for i in range(len(fids)):
-            pfids.append(self.gate.seq_purify([fids[i]] * allocs[i]))
+            if self.purify_shape == MetaTree.Shape.LINKED:
+                pfids.append(self.gate.seq_purify([fids[i]] * allocs[i])[0])
+            elif self.purify_shape == MetaTree.Shape.BALANCED:
+                pfids.append(self.gate.balanced_purify([fids[i]] * allocs[i])[0])
         return pfids
     
     def swap_purify(self, fids: list[qu.FidType], allocs: list[int]) -> qu.FidType:
         pfids = self.purify_on_edge(fids, allocs)
-        return self.gate.seq_swap(pfids)
+        if self.swap_shape == MetaTree.Shape.LINKED:
+            f, p = self.gate.seq_swap(pfids)
+        elif self.swap_shape == MetaTree.Shape.BALANCED:
+            f, p = self.gate.balanced_swap(pfids)
+        return f, p
 
     def find_critical_edge(self, fids: list[qu.FidType]) -> 'int':
         # find the edge with the highest gradient
@@ -285,7 +320,7 @@ class EPPSolver(Solver):
         min_alloc = int(np.ceil(min_alloc))
         self.alloc = { edge: min_alloc for edge in self.edges }
 
-        fid = self.swap_purify(self.fids, list(self.alloc.values()))
+        fid, prob = self.swap_purify(self.fids, list(self.alloc.values()))
 
         while fid < fth and sum(self.alloc.values()) <= cost_cap:
             # find the edge with the highest gradient
@@ -293,7 +328,9 @@ class EPPSolver(Solver):
             max_grad_idx = self.find_critical_edge(pfids)
             edge = list(self.edges.keys())[max_grad_idx]
             self.alloc[edge] += 1
-            fid = self.swap_purify(self.fids, list(self.alloc.values()))
+            fid, prob = self.swap_purify(self.fids, list(self.alloc.values()))
+
+            # print(fid)
 
     
     def report(self) -> 'tuple[qu.FidType, ExpAllocType]':
@@ -301,14 +338,14 @@ class EPPSolver(Solver):
         psts: 'list[Node]' = []
         for i, edge in enumerate(self.edges):
             num = int(np.ceil(self.alloc[edge]))
-            pst = SPST.build_pst(self.gate, edge, self.fids[i], num,)
+            pst = SPST.build_pst(self.gate, edge, self.fids[i], num, MetaTree.Shape.LINKED)
             psts.append(pst)
 
         pfids = [ pst.fid for pst in psts ]
         pedges = { edge: pfids[i] for i, edge in enumerate(self.edges) }
         tree = SPST(pedges, self.gate)
         costs = [ pst.cost for pst in psts ]
-        tree.build_sst(costs=costs)
+        tree.build_sst(costs=costs, shape=MetaTree.Shape.LINKED)
 
         alloc = ExpAllocType({})
         TreeSolver._traverse(tree.root, 1, alloc)
@@ -341,16 +378,21 @@ def test_TreeSolver(edges, gate, fth=0.9, cost_cap=1000, print_tree=False):
     return f, list(alloc.values())
     
 
-def test_GRDSolver(edges, op, fth=0.9, cost_cap=1000):
-    solver = GRDSolver(edges, op)
+def test_GRDSolver(edges, gate, fth=0.9, cost_cap=1000,
+        swap_shape=MetaTree.Shape.LINKED,
+        purify_shape=MetaTree.Shape.LINKED):
+    solver = GRDSolver(edges, gate, swap_shape, purify_shape)
     solver.solve(fth, cost_cap)
     f, alloc = solver.report()
 
     return f, list(alloc.values())
 
 
-def test_EPPSolver(edges, op, fth=0.9, cost_cap=1000):
-    solver = EPPSolver(edges, op)
+def test_EPPSolver(edges, op, fth=0.9, cost_cap=1000,
+        swap_shape=MetaTree.Shape.LINKED,
+        purify_shape=MetaTree.Shape.LINKED
+        ):
+    solver = EPPSolver(edges, op, swap_shape, purify_shape)
     solver.solve(fth, cost_cap)
     f, alloc = solver.report()
 

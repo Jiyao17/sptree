@@ -92,9 +92,11 @@ class Gate:
     
     def seq_swap(self, fids):
         f = fids[0]
+        prob = 1
         for i in range(1, len(fids)):
             f, p = self.swap(f, fids[i])
-        return f
+            prob *= p
+        return f, prob
     
     def seq_swap_grad(self, fids, partial):
         prod = 1
@@ -121,6 +123,22 @@ class Gate:
         grad_cn = 1/self.hw.prob_swap
         return grad_f, grad_cn, 0
 
+    def balanced_swap(self, fids: 'list[float]') -> 'OpResultType':
+        assert len(fids) > 0
+        next_fids = []
+        prob = 1
+        while len(fids) > 1:
+            while len(fids) > 1:
+                f1, f2 = fids.pop(0), fids.pop(0)
+                f, p = self.swap(f1, f2)
+                next_fids.append(f)
+                prob *= p
+
+            fids = next_fids
+            next_fids = []
+
+        return fids[0], prob
+
     def purify(self, f1, f2) -> 'OpResultType':
         if self.ent_type == EntType.DEPHASED:
             return self._purify_dephased(f1, f2)
@@ -131,12 +149,32 @@ class Gate:
     
     def seq_purify(self, fids) -> 'OpResultType':
         f = fids[0]
+        prob = 1
         for i in range(1, len(fids)):
             f, p = self.purify(f, fids[i])
-        return f
+            prob *= p
+        return f, prob
     
-    def balanced_purify(self, fids) -> 'OpResultType':
-        assert False, "Not implemented"
+    def balanced_purify(self, fids: 'list[float]') -> 'OpResultType':
+        assert len(fids) > 0
+        next_fids = []
+        prob = 1
+        while len(fids) > 1:
+            while len(fids) > 1:
+                fid1, fid2 = fids.pop(0), fids.pop(0)
+                f, p = self.purify(fid1, fid2)
+                next_fids.append(f)
+                prob *= p
+
+            if len(fids) == 1:
+                next_fids.append(fids.pop(0))
+
+            fids = next_fids
+            next_fids = []
+
+        return fids[0], prob
+
+
 
     def purify_grad(self, f1, f2, n1, n2, partial,) -> 'tuple[FidType, ExpCostType, ExpCostType]':
         if self.ent_type == EntType.DEPHASED:

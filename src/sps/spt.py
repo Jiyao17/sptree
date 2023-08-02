@@ -236,10 +236,40 @@ class SPST(MetaTree):
 
             return current_nodes[0]
 
+        def _build_balanced(leaves: 'list[Node]') -> Node:
+            current_nodes: 'list[Node]' = leaves
+            next_nodes: 'list[Node]' = []
+            # merge nodes round by round
+            while len(current_nodes) >= 1:
+                if len(current_nodes) == 1:
+                    return current_nodes.pop()
+                
+                # merge nodes in current round
+                while len(current_nodes) >= 2:
+                    node1, node2 = current_nodes.pop(0), current_nodes.pop(0)
+                    f1, f2 = node1.fid, node2.fid
+                    f, p = gate.swap(f1, f2)
+                    edge = (node1.edge_tuple[0], node2.edge_tuple[1])
+                    new_node = Branch(edge, f, None, node1, node2, qu.OpType.PURIFY, p)
+                    new_node.cost = (node1.cost + node2.cost) / p
+                    node1.parent = new_node
+                    node2.parent = new_node
+                    next_nodes.append(new_node)
+                    # print(f'New Node {new_id} = {node1} + {node2}')
+                    # print(f'Fidelity {f} = swap({f1}, {f2})')
+
+                # one node left, add it to the next round directly
+                if len(current_nodes) == 1:
+                    next_nodes.append(current_nodes.pop())
+                
+                current_nodes, next_nodes = next_nodes, []
+
         leaves = [Leaf(edge, fid, None) for i in range(num)]
 
         if shape == MetaTree.Shape.LINKED:
             root = _build_linked(leaves)
+        elif shape == MetaTree.Shape.BALANCED:
+            root = _build_balanced(leaves)
         else:
             raise NotImplementedError('shape not implemented')
 
@@ -280,6 +310,20 @@ class SPST(MetaTree):
                 
                 current_nodes, next_nodes = next_nodes, []
 
+        def _build_linked(leaves: 'list[Node]') -> Node:
+            while len(leaves) > 1:
+                node1, node2 = leaves.pop(0), leaves.pop(0)
+                f, p = self.gate.purify(node1.fid, node2.fid)
+                edge = deepcopy(node1.edge_tuple)
+                new_node = Branch(edge, f, None, node1, node2, qu.OpType.SWAP, p)
+                new_node.cost = (node1.cost + node2.cost) / p
+                node1.parent = new_node
+                node2.parent = new_node
+                leaves.insert(0, new_node)
+
+            return leaves[0]
+
+
         # sort the edges by fidelity
         # edges = sorted(self.leaves.items(), key=lambda x: x[1], reverse=True)
         leaves = [Leaf(edge, fidelity, None) for edge, fidelity 
@@ -290,6 +334,8 @@ class SPST(MetaTree):
 
         if shape == MetaTree.Shape.BALANCED:
             self.root = _build_balanced(leaves)
+        elif shape == MetaTree.Shape.LINKED:
+            self.root = _build_linked(leaves)
         else:
             raise NotImplementedError('shape not implemented')
 

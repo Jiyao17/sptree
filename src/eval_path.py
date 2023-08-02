@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import physical.quantum as qu
 from sps.solver import test_TreeSolver, test_GRDSolver, test_EPPSolver
 from utils.tools import test_edges_gen, draw_lines
+from sps.spt import MetaTree
 
 def draw_times(
     x, ys,
@@ -59,54 +60,191 @@ def draw_times(
 # SEED = 0
 def test_dp_sys(fth, exp_num):
     op = qu.GDP
-    cost_cap = 10000
+    cost_cap = 1e5
     edge_num_range = range(5, 26, 5)
+    # edge_num_range = range(7, 10, 1)
 
-    costs = np.zeros((len(edge_num_range), 3))
-    times = np.zeros((len(edge_num_range), 3))
+    labels = ["TREE",
+        "GRDY-LL", "GRDY-LB", "GRDY-BL", "GRDY-BB",
+        "EPP-LL", "EPP-LB", "EPP-BL", "EPP-BB"
+        ]
+
+
+    costs = np.zeros((len(edge_num_range), len(labels)))
+    times = np.zeros((len(edge_num_range), len(labels)))
     for edge_num in edge_num_range:
-        tree_cost, grdy_cost, epp_cost = 0, 0, 0
-        tree_time, grdy_time, epp_time = 0, 0, 0
+        edge_cost = np.zeros((len(labels)))
+        edge_time = np.zeros((len(labels)))
 
         for i in range(exp_num):
-            edges = test_edges_gen(edge_num, 0.7, 0.25)
+            edges = test_edges_gen(edge_num, (0.7, 0.95))
 
             start = time.time()
             f, allocs = test_TreeSolver(edges, op, fth, cost_cap, False)
-            tree_time += time.time() - start
-            tree_cost += sum(allocs)
+            edge_time[0] += time.time() - start
+            edge_cost[0] += sum(allocs)
 
             start = time.time()
-            f, allocs = test_GRDSolver(edges, op, fth, cost_cap, )
-            grdy_time += time.time() - start
-            grdy_cost += sum(allocs)
+            f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
+            edge_time[1] += time.time() - start
+            edge_cost[1] += sum(allocs)
+
+            # start = time.time()
+            # f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
+            #                         MetaTree.Shape.LINKED, MetaTree.Shape.BALANCED)
+            # edge_time[2] += time.time() - start
+            # edge_cost[2] += sum(allocs)
 
             start = time.time()
-            f, allocs = test_EPPSolver(edges, op, fth, cost_cap, )
-            epp_time += time.time() - start
-            epp_cost += sum(allocs)
+            f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.BALANCED, MetaTree.Shape.LINKED)
+            edge_time[3] += time.time() - start
+            edge_cost[3] += sum(allocs)
 
-        tree_cost, grdy_cost, epp_cost = tree_cost / exp_num, grdy_cost / exp_num, epp_cost / exp_num
-        tree_time, grdy_time, epp_time = tree_time / exp_num, grdy_time / exp_num, epp_time / exp_num
+            start = time.time()
+            f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.BALANCED, MetaTree.Shape.BALANCED)
+            edge_time[4] += time.time() - start
+            edge_cost[4] += sum(allocs)
 
-        costs[edge_num_range.index(edge_num)] = [tree_cost, grdy_cost, epp_cost]
-        times[edge_num_range.index(edge_num)] = [tree_time, grdy_time, epp_time]
+            start = time.time()
+            f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
+            edge_time[5] += time.time() - start
+            edge_cost[5] += sum(allocs)
+
+            start = time.time()
+            f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.LINKED, MetaTree.Shape.BALANCED)
+            edge_time[6] += time.time() - start
+            edge_cost[6] += sum(allocs)
+
+            start = time.time()
+            f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.BALANCED, MetaTree.Shape.LINKED)
+            edge_time[7] += time.time() - start
+            edge_cost[7] += sum(allocs)
+
+            start = time.time()
+            f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.BALANCED, MetaTree.Shape.BALANCED)
+            edge_time[8] += time.time() - start
+            edge_cost[8] += sum(allocs)
+
+
+        costs[edge_num_range.index(edge_num)] = edge_cost / exp_num
+        times[edge_num_range.index(edge_num)] = edge_time / exp_num
 
         print("edge num {} done".format(edge_num))
 
     x = edge_num_range
-    ys = [costs[:, 0], costs[:, 1], costs[:, 2]]
-    xlabel = "Number of edges"
+    ys = costs.T
+    xlabel = "Hop Number"
     ylabel = "Cost"
-    labels = ["Tree", "GRDY", "EPP"]
-    markers = ['o', 's', 'v']
-    filename = "../data/dp_cost_f={}.png".format(fth)
+    markers = ['o', 's', 'v', 'd', 'p', 'x', 'h', '>', '<']
+    filename = "../data/path/dp_path_cost_f={}.png".format(fth)
     draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename)
 
-    ys = [times[:, 0], times[:, 1], times[:, 2]]
+    ys = times.T
     ylabel = "Time (s)"
-    filename = "../data/dp_time_f={}.png".format(fth)
+    filename = "../data/path/dp_path_time_f={}.png".format(fth)
     draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename)
+
+def test_wn_sys_full(fth, exp_num):
+    op = qu.GWP
+    cost_cap = 1e5
+    edge_num_range = range(2, 11, 2)
+    # edge_num_range = range(7, 10, 1)
+
+    labels = ["TREE",
+        "GRDY-LL", "GRDY-LB", "GRDY-BL", "GRDY-BB",
+        "EPP-LL", "EPP-LB", "EPP-BL", "EPP-BB"
+        ]
+
+
+    costs = np.zeros((len(edge_num_range), len(labels)))
+    times = np.zeros((len(edge_num_range), len(labels)))
+    for edge_num in edge_num_range:
+        edge_cost = np.zeros((len(labels)))
+        edge_time = np.zeros((len(labels)))
+
+        for i in range(exp_num):
+            edges = test_edges_gen(edge_num, (0.95, 1))
+
+            start = time.time()
+            f, allocs = test_TreeSolver(edges, op, fth, cost_cap, False)
+            edge_time[0] += time.time() - start
+            edge_cost[0] += sum(allocs)
+
+            start = time.time()
+            f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
+            edge_time[1] += time.time() - start
+            edge_cost[1] += sum(allocs)
+
+            # start = time.time()
+            # f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
+            #                         MetaTree.Shape.LINKED, MetaTree.Shape.BALANCED)
+            # edge_time[2] += time.time() - start
+            # edge_cost[2] += sum(allocs)
+
+            start = time.time()
+            f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.BALANCED, MetaTree.Shape.LINKED)
+            edge_time[3] += time.time() - start
+            edge_cost[3] += sum(allocs)
+
+            start = time.time()
+            f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.BALANCED, MetaTree.Shape.BALANCED)
+            edge_time[4] += time.time() - start
+            edge_cost[4] += sum(allocs)
+
+            start = time.time()
+            f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
+            edge_time[5] += time.time() - start
+            edge_cost[5] += sum(allocs)
+
+            start = time.time()
+            f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.LINKED, MetaTree.Shape.BALANCED)
+            edge_time[6] += time.time() - start
+            edge_cost[6] += sum(allocs)
+
+            start = time.time()
+            f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.BALANCED, MetaTree.Shape.LINKED)
+            edge_time[7] += time.time() - start
+            edge_cost[7] += sum(allocs)
+
+            start = time.time()
+            f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.BALANCED, MetaTree.Shape.BALANCED)
+            edge_time[8] += time.time() - start
+            edge_cost[8] += sum(allocs)
+
+
+        costs[edge_num_range.index(edge_num)] = edge_cost / exp_num
+        times[edge_num_range.index(edge_num)] = edge_time / exp_num
+
+        print("edge num {} done".format(edge_num))
+
+    x = edge_num_range
+    ys = costs.T
+    xlabel = "Hop Number"
+    ylabel = "Cost"
+    markers = ['o', 's', 'v', 'd', 'p', 'x', 'h', '>', '<']
+    filename = "../data/path/wn_path_cost_f={}.png".format(fth)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename)
+
+    ys = times.T
+    ylabel = "Time (s)"
+    filename = "../data/path/wn_path_time_f={}.png".format(fth)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename)
+
+
 
 def comp_wn_sys(fth, exp_num):
     op = qu.GWP
@@ -252,29 +390,30 @@ def test_wn_sys(fth, exp_num):
 
 def test_wn_others(fth, exp_num):
     # gate = qu.GWP
-    cost_cap = 1e6
-
-    fid_range = (0.99, 0.99)
+    cost_cap = 1e10
+    fth = 0.7
+    fid_range = (fth, fth)
 
     gate = qu.GWP
 
     edges = test_edges_gen(3, fid_range)
 
     f, allocs = test_GRDSolver(edges, gate, fth, cost_cap)
+    # f, allocs = test_EPPSolver(edges, gate, fth, cost_cap)
 
     print(f, sum(allocs))
 
                 
 
 if __name__ == '__main__':
-    # test_dp_sys(0.8, 100)
-    # test_dp_sys(0.9, 100)
-    # test_dp_sys(0.99, 100)
-    # test_dp_sys(0.9999, 100)
+    test_dp_sys(0.8, 10)
+    test_dp_sys(0.9, 10)
+    test_dp_sys(0.99, 10)
+    test_dp_sys(0.9999, 10)
 
     # test_wn_others(0.99, 1)
 
-    test_wn_sys(0.85, 100)
-    test_wn_sys(0.9, 100)
-    test_wn_sys(0.95, 100)
+    # test_wn_sys(0.85, 100)
+    # test_wn_sys(0.9, 100)
+    # test_wn_sys(0.95, 100)
 
