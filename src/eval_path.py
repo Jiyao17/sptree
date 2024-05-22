@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import physical.quantum as qu
-from sps.solver import test_TreeSolver, test_GRDSolver, test_EPPSolver
+from sps.solver import test_TreeSolver, test_GRDSolver, test_EPPSolver, test_DPSolver
 from utils.tools import test_edges_gen, draw_lines
 from sps.spt import MetaTree
 
@@ -66,7 +66,7 @@ def test_dp_sys(fth, exp_num):
 
     labels = ["TREE",
         "GRDY-LL", "GRDY-LB", "GRDY-BL", "GRDY-BB",
-        "EPP-LL", "EPP-LB", "EPP-BL", "EPP-BB"
+        "EPP-LL", "EPP-LB", "EPP-BL", "EPP-BB",
         ]
 
 
@@ -177,11 +177,11 @@ def test_wn_sys_full(fth, exp_num):
             edge_time[0] += time.time() - start
             edge_cost[0] += sum(allocs)
 
-            start = time.time()
-            f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
-                                    MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
-            edge_time[1] += time.time() - start
-            edge_cost[1] += sum(allocs)
+            # start = time.time()
+            # f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
+            #                         MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
+            # edge_time[1] += time.time() - start
+            # edge_cost[1] += sum(allocs)
 
             # start = time.time()
             # f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
@@ -189,35 +189,35 @@ def test_wn_sys_full(fth, exp_num):
             # edge_time[2] += time.time() - start
             # edge_cost[2] += sum(allocs)
 
-            start = time.time()
-            f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
-                                    MetaTree.Shape.BALANCED, MetaTree.Shape.LINKED)
-            edge_time[3] += time.time() - start
-            edge_cost[3] += sum(allocs)
+            # start = time.time()
+            # f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
+            #                         MetaTree.Shape.BALANCED, MetaTree.Shape.LINKED)
+            # edge_time[3] += time.time() - start
+            # edge_cost[3] += sum(allocs)
 
-            start = time.time()
-            f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
-                                    MetaTree.Shape.BALANCED, MetaTree.Shape.BALANCED)
-            edge_time[4] += time.time() - start
-            edge_cost[4] += sum(allocs)
+            # start = time.time()
+            # f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
+            #                         MetaTree.Shape.BALANCED, MetaTree.Shape.BALANCED)
+            # edge_time[4] += time.time() - start
+            # edge_cost[4] += sum(allocs)
 
-            start = time.time()
-            f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
-                                    MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
-            edge_time[5] += time.time() - start
-            edge_cost[5] += sum(allocs)
+            # start = time.time()
+            # f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
+            #                         MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
+            # edge_time[5] += time.time() - start
+            # edge_cost[5] += sum(allocs)
 
-            start = time.time()
-            f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
-                                    MetaTree.Shape.LINKED, MetaTree.Shape.BALANCED)
-            edge_time[6] += time.time() - start
-            edge_cost[6] += sum(allocs)
+            # start = time.time()
+            # f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
+            #                         MetaTree.Shape.LINKED, MetaTree.Shape.BALANCED)
+            # edge_time[6] += time.time() - start
+            # edge_cost[6] += sum(allocs)
 
-            start = time.time()
-            f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
-                                    MetaTree.Shape.BALANCED, MetaTree.Shape.LINKED)
-            edge_time[7] += time.time() - start
-            edge_cost[7] += sum(allocs)
+            # start = time.time()
+            # f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
+            #                         MetaTree.Shape.BALANCED, MetaTree.Shape.LINKED)
+            # edge_time[7] += time.time() - start
+            # edge_cost[7] += sum(allocs)
 
             start = time.time()
             f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
@@ -231,20 +231,18 @@ def test_wn_sys_full(fth, exp_num):
 
         print("edge num {} done".format(edge_num))
 
-    x = edge_num_range
-    ys = costs.T
-    xlabel = "Hop Number"
-    ylabel = "Cost"
-    markers = ['o', 's', 'v', 'd', 'p', 'x', 'h', '>', '<']
-    filename = "../data/path/wn_path_cost_f={}.png".format(fth)
-    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename)
+        x = edge_num_range
+        ys = costs.T
+        xlabel = "Hop Number"
+        ylabel = "Cost"
+        markers = ['o', 's', 'v', 'd', 'p', 'x', 'h', '>', '<']
+        filename = "/home/ljy/projects/sptree/data/path/wn_path_cost_f={}.png".format(fth)
+        draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename)
 
-    ys = times.T
-    ylabel = "Time (s)"
-    filename = "../data/path/wn_path_time_f={}.png".format(fth)
-    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename)
-
-
+        ys = times.T
+        ylabel = "Time (s)"
+        filename = "/home/ljy/projects/sptree/data/path/wn_path_time_f={}.png".format(fth)
+        draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename)
 
 def comp_wn_sys(fth, exp_num):
     op = qu.GWP
@@ -406,10 +404,15 @@ def test_wn_others(fth, exp_num):
                 
 
 if __name__ == '__main__':
-    test_dp_sys(0.8, 10)
-    test_dp_sys(0.9, 10)
-    test_dp_sys(0.99, 10)
-    test_dp_sys(0.9999, 10)
+    # test_dp_sys(0.8, 10)
+    # test_dp_sys(0.9, 10)
+    # test_dp_sys(0.99, 10)
+    # test_dp_sys(0.9999, 10)
+
+    # test_wn_sys_full(0.8, 10)
+    # test_wn_sys_full(0.85, 10)
+    # test_wn_sys_full(0.9, 10)
+    test_wn_sys_full(0.99, 10)
 
     # test_wn_others(0.99, 1)
 

@@ -106,6 +106,7 @@ class MetaTree(ABC):
         LINKED = 1
         REVERSE_LINKED = 2
         RANDOM = 3
+        OPT_ST = 4
     
     @staticmethod
     def grad(node: Node) -> float:
@@ -216,7 +217,7 @@ class SPST(MetaTree):
 
     @staticmethod
     def build_pst(gate: qu.Gate, edge: EdgeTuple, fid: qu.FidType, num: int, 
-            shape=MetaTree.Shape.LINKED, ) -> Node:
+            shape=MetaTree.Shape.LINKED, cost: qu.ExpCostType=1) -> Node:
         """
         Build the PST
         """
@@ -265,6 +266,7 @@ class SPST(MetaTree):
                 current_nodes, next_nodes = next_nodes, []
 
         leaves = [Leaf(edge, fid, None) for i in range(num)]
+        [setattr(leaf, 'cost', cost) for leaf in leaves]
 
         if shape == MetaTree.Shape.LINKED:
             root = _build_linked(leaves)
@@ -280,7 +282,8 @@ class SPST(MetaTree):
 
     def build_sst(self, shape=MetaTree.Shape.BALANCED, costs: 'list[qu.ExpCostType]'=None) -> Node:
         """
-        Build the SPST
+        Build the SST with initial leaves
+        costs: overide costs is not None
         """
         def _build_balanced(leaves: 'list[Node]') -> Node:
             current_nodes: 'list[Node]' = leaves
@@ -313,7 +316,7 @@ class SPST(MetaTree):
         def _build_linked(leaves: 'list[Node]') -> Node:
             while len(leaves) > 1:
                 node1, node2 = leaves.pop(0), leaves.pop(0)
-                f, p = self.gate.purify(node1.fid, node2.fid)
+                f, p = self.gate.swap(node1.fid, node2.fid)
                 edge = deepcopy(node1.edge_tuple)
                 new_node = Branch(edge, f, None, node1, node2, qu.OpType.SWAP, p)
                 new_node.cost = (node1.cost + node2.cost) / p
@@ -323,6 +326,29 @@ class SPST(MetaTree):
 
             return leaves[0]
 
+        def _build_optimal(leaves: 'list[Node]',) -> Node:
+            nodes = leaves
+            # merge two adjacent nodes round by round
+            while len(nodes) > 1:
+                # find two adjacent nodes with minimal cost
+                min_cost = float('inf')
+                min_node_idx = None
+                for i in range(len(nodes)-1):
+                    cost = nodes[i].cost + nodes[i+1].cost
+                    if cost < min_cost:
+                        min_cost = cost
+                        min_node_idx = i
+                # merge the two nodes
+                node1, node2 = nodes.pop(min_node_idx), nodes.pop(min_node_idx)
+                f, p = self.gate.swap(node1.fid, node2.fid)
+                edge = deepcopy(node1.edge_tuple)
+                new_node = Branch(edge, f, None, node1, node2, qu.OpType.SWAP, p)
+                new_node.cost = (node1.cost + node2.cost) / p
+                node1.parent = new_node
+                node2.parent = new_node
+                nodes.insert(min_node_idx, new_node)
+
+            return nodes[0]
 
         # sort the edges by fidelity
         # edges = sorted(self.leaves.items(), key=lambda x: x[1], reverse=True)
@@ -336,6 +362,8 @@ class SPST(MetaTree):
             self.root = _build_balanced(leaves)
         elif shape == MetaTree.Shape.LINKED:
             self.root = _build_linked(leaves)
+        elif shape == MetaTree.Shape.OPT_ST:
+            self.root = _build_optimal(leaves)
         else:
             raise NotImplementedError('shape not implemented')
 
@@ -486,6 +514,21 @@ class SPST(MetaTree):
         # recursive on descendants
         self.calc_efficiency(node.left)
         self.calc_efficiency(node.right)
+
+
+class SPT():
+    def __init__(self, edges: 'dict[EdgeTuple, qu.FidType]', gate: 'qu.Gate'=qu.GDP) -> None:
+        self.edges = edges
+        self.gate = gate
+
+        self.root = None
+
+    def st_search(nodes: 'list[Node]'):
+        pass
+
+    def pt_search(node: 'Node', cost_bound: qu.ExpCostType,):
+        pass
+
 
 
 def test_SST():

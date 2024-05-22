@@ -57,11 +57,11 @@ class HWParam:
 # perfect hardware
 HWP = HWParam((1, 1, 1, 1))
 # noisy hardware, high accuracy
-HWH = HWParam((0.999, 0.999, 0.999, 0.995))
+HWH = HWParam((0.99999, 0.99999, 0.9999, 0.9999))
 # noisy hardware, medium accuracy
-HWM = HWParam((0.995, 0.995, 0.995, 0.99))
+HWM = HWParam((0.9999, 0.9999, 0.999, 0.999))
 # noisy hardware, low accuracy
-HWL = HWParam((0.99, 0.99, 0.99, 0.975))
+HWL = HWParam((0.999, 0.999, 0.99, 0.99))
 
 
 class Gate:
@@ -296,41 +296,8 @@ GWL = Gate(EntType.WERNER, HWL)
 
 
 if __name__ == '__main__':
-    wsys = Gate(EntType.WERNER, HWParam((0.99, 0.99, 0.99, 0.9)))
-    wsys_noiseless = Gate(EntType.WERNER, HWParam((1, 1, 1, 1)))
-    dsys = Gate(EntType.DEPHASED, HWParam((1, 1, 1, 1)))
-    op = wsys
-    
-    f1, f2, f3, f4 = 0.9, 0.9, 0.9, 0.9
-
-    f12, p12 = op.swap(f1, f2)
-    n12 = 2/p12
-    f34, p34 = op.swap(f3, f4)
-    n34 = 2/p34
-
-    f, p = op.swap(f12, f34)
-    n = (n12 + n34) / p
-    print(f, n)
-
-    f12, p12 = op.swap(f1, f2)
-    n12 = 2/p12
-    f123, p123 = op.swap(f12, f3)
-    n123 = (n12 + 1) / p123
-    f, p = op.swap(f123, f4)
-    n = (n123 + 1) / p
-    print(f, n)
-
-
-    ns = 0
-    p = op.hw.prob_swap
-    simu = 100
-    import numpy as np
-    ns = np.zeros((simu, simu))
-    for m in range(0, simu):
-        for n in range(0, simu):
-            ns[m, n] = (1-p)**m*p * (1-p)**n*p * ((m+1)*2 + (n+1)*2)
-    print(sum(ns.flatten()) / p)
-
-    en = (2/p + 2/p) / p
-    print(en)
+    gate = Gate(EntType.WERNER, HWParam((0.99, 0.99, 0.99, 0.99)))
+    f1, f2 = 0.9, 0.9
+    f, p = gate.purify(f1, f2)
+    print(f, p)
 

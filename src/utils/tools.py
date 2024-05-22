@@ -44,9 +44,9 @@ def draw_lines(
     if yreverse:
         plt.gca().invert_yaxis()
     if xlim is not None:
-        plt.xlim(xlim)
+        plt.xlim(*xlim)
     if ylim is not None:
-        plt.ylim(ylim)
+        plt.ylim(*ylim)
     # plt.title(title)
     plt.legend()
     plt.grid(True)

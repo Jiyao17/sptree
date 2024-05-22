@@ -10,6 +10,7 @@ from physical.network import EdgeTuple
 import physical.quantum as qu
 from .spt import SPST, Node, Branch
 from .spt import MetaTree
+from utils.tools import test_edges_gen
 
 
 AllocType = NewType('AllocType', dict[EdgeTuple, qu.BudgetType])
@@ -20,6 +21,9 @@ class SolverType(Enum):
     TREE = 1
     GRD = 2
     EPP = 3
+    NESTED_F = 4
+    NESTED_C = 5
+    DP = 6
 
 
 class Solver(ABC):
@@ -30,6 +34,7 @@ class Solver(ABC):
         self.edge_num = len(edges)
         self.fids = list(edges.values())
         self.alloc: ExpAllocType = {}
+        self.final_fid = 0
 
     @abstractmethod
     def solve(self, fid_th: qu.FidType) -> 'tuple[qu.FidType, ExpAllocType]':
@@ -58,8 +63,15 @@ class TreeSolver(Solver):
             TreeSolver._traverse(node.left, cost_factor, alloc)
             TreeSolver._traverse(node.right, cost_factor, alloc)
 
-    def __init__(self, edges: dict[EdgeTuple, qu.FidType], gate: qu.Gate) -> None:
+    def __init__(self, 
+            edges: dict[EdgeTuple, qu.FidType], gate: qu.Gate,
+            # st_shape: MetaTree.Shape=MetaTree.Shape.BALANCED, 
+            # pt_shape: MetaTree.Shape=MetaTree.Shape.BALANCED,
+            )-> None:
         super().__init__(edges, gate)
+
+        # self.st_shape = st_shape
+        # self.pt_shape = pt_shape
 
         self.tree = SPST(edges, gate)
         self.tree.build_sst()
@@ -97,6 +109,60 @@ class TreeSolver(Solver):
         return self.tree.root.fid, alloc
 
 
+class OptimalSolver(Solver):
+    def __init__(self, edges: dict[EdgeTuple, qu.FidType], gate: qu.Gate) -> None:
+        super().__init__(edges, gate)
+
+    def pt_shape_search(self, fth: qu.FidType, cost_cap: qu.ExpCostType) -> 'tuple[qu.FidType, ExpAllocType]':
+        pass
+
+    def solve(self, budget: int):
+        pass
+
+
+class SPTSolver(Solver):
+    # swap and purification tree solver
+    # for OSPS problem
+
+    def __init__(self, 
+            edges: dict[EdgeTuple, float],
+            gate: qu.Gate=qu.GDP,
+            ) -> None:
+        super().__init__(edges, gate)
+
+        self.psts: 'list[Node]' = []
+        for i, edge in enumerate(edges):
+            pst = SPST.build_pst(gate, edge, edges[edge], 1)
+            self.psts.append(pst)
+
+        self.pfids = [ pst.fid for pst in self.psts ]
+        self.pedges = { edge: self.pfids[i] for i, edge in enumerate(edges) }
+        self.tree = SPST(self.pedges, gate)
+        self.tree.build_sst()
+
+    def solve(self, budget: int):
+        # allocate purification to edges
+        for edge in self.edges:
+            self.alloc[edge] = 1
+        # build the purification tree
+        self.tree.build_sst(costs=list(self.alloc.values()))
+
+        while self.tree.root.cost < budget:
+            # find the edge with the highest gradient
+            max_grad_idx = self.tree.find_critical_edge()
+            edge = list(self.edges.keys())[max_grad_idx]
+            self.alloc[edge] += 1
+            # rebuild the tree
+            self.tree.build_sst(costs=list(self.alloc.values()))
+
+    def report(self) -> 'tuple[qu.FidType, ExpAllocType]':
+        # introduce probability of success
+        alloc = ExpAllocType({})
+        TreeSolver._traverse(self.tree.root, 1, alloc)
+
+        return self.tree.root.fid, alloc
+
+
 class DPSolver(Solver):
     # dynamic programming solver
     # for OSPS problem
@@ -107,24 +173,32 @@ class DPSolver(Solver):
             ) -> None:
         super().__init__(edges, gate)
 
+        # rec[(i, j)] = (op, m, bl, br)
+        self.rec = {}
+        self.rate = {}
+        
+
     
-    def solve(self, budget: int):
+    def solve(self, budget: int, eps=0.0, interval=1):
         # fidelity of optimal solutions
         self.mat = np.zeros((self.edge_num, self.edge_num+1, budget+1), dtype=np.float64)
-
         # init dp matrix
         for i in range(self.edge_num):
             # edge i = [i, i+1]
             self.mat[i][i+1][1] = self.fids[i]
+            self.rec[(i, i+1, 1)] = (qu.OpType.PURIFY, 0, 1, 0, 1)
 
         # the two outer loops iterate over all possible path fragments
-        for length in range(2, self.edge_num + 1):
+        for length in range(1, self.edge_num + 1):
             for i in range(self.edge_num - length + 1):
                 # solve path [i, j]
                 j = i + length
                 # got all subpaths of length len
                 # now try all possible budget for each subpath
-                for c in range(length, budget-(self.edge_num-length)+1):
+                for c in range(length, budget-(self.edge_num-length)+1, 1):
+                    if c == 1:
+                        # already solved
+                        continue
                     max_fid = 0 
                     # max_fid_budget = 0
                     op = qu.OpType.SWAP
@@ -133,8 +207,8 @@ class DPSolver(Solver):
                     # try all possible path split
                     for m in range(i+1, j):
                         # try all possible budget split
-                        for bl in range(m-i, c-(j-m)+1):
-                            for br in range(j-m, c-bl+1):
+                        for bl in range(m-i, c-(j-m)+1, 1):
+                            for br in range(j-m, c-bl+1, 1):
                                 # max between mat[i][m][m-i] and mat[i][m][br]
                                 fid_left = self.mat[i][m][bl]
                                 fid_right = self.mat[m][j][br]
@@ -149,12 +223,13 @@ class DPSolver(Solver):
                                 elif fid > max_fid:
                                     op = qu.OpType.SWAP
                                     max_fid = fid
+                                    self.rec[(i, j, c)] = (op, m, bl, br, prob)
                                     # max_fid_budget = current_budget
                                     
                     # if purify is the optimal choice at this point
                     # try all possible budget split
-                    for bl in range(length, c-length+1):
-                        for br in range(length, c-bl+1):
+                    for bl in range(length, c-length+1, 1):
+                        for br in range(length, c-bl+1, 1):
                             if self.mat[i][j][bl] == 0 or self.mat[i][j][br] == 0:
                                 # infeasible budget split
                                 continue
@@ -166,47 +241,78 @@ class DPSolver(Solver):
                             elif fid > max_fid:
                                 op = qu.OpType.PURIFY
                                 max_fid = fid
+                                self.rec[(i, j, c)] = (op, 0, bl, br, prob)
                                 # print(f"purify: {i}, {j}, {bl}, {br}")
                                 # max_fid_budget = current_budget
 
                     self.mat[i][j][c] = max_fid
 
+    def reconstruct(self, i: int, j: int, c: int, rate) -> 'tuple[qu.OpType, int, int, int]':
+        
+        # if self.mat[i][j][c] == 0:
+        #     raise ValueError(f"no solution for path [{i}, {j}] with budget {c}")
+        
+        if j == i + 1 and c == 1:
+            if (i, j) in self.alloc:
+                self.alloc[(i, j)] += rate
+            else:
+                self.alloc[(i, j)] = rate
+
+            return
+
+        op, m, bl, br, prob = self.rec[(i, j, c)]
+        rate *= 1/prob
+        if op == qu.OpType.SWAP:
+            self.reconstruct(i, m, bl, rate)
+            self.reconstruct(m, j, br, rate)
+        elif op == qu.OpType.PURIFY:
+            self.reconstruct(i, j, bl, rate)
+            self.reconstruct(i, j, br, rate)
+        else:
+            raise ValueError(f"unknown operation {op}")
+
+
+
     def report(self) -> 'tuple[qu.FidType, ExpAllocType]':
         # find the optimal allocation
         # from the dp matrix
         # self.alloc = {}
-        # self._report(self.edge_num, self.budget)
-        
-        
-        f = self.mat[0][self.edge_num][-1]
+        budget = self.mat.shape[-1] - 1
+        f = self.mat[0][self.edge_num][budget]
+        if f > 0:
+            self.reconstruct(0, self.edge_num, budget, 1)
+        else:
+            f = np.nan
+            self.alloc = {(i, i+1): 0 for i in range(self.edge_num)}
         return f, self.alloc
 
 
 class GRDSolver(Solver):
     def __init__(self, edges: dict[EdgeTuple, qu.FidType], gate: qu.Gate,
-        swap_shape: MetaTree.Shape=MetaTree.Shape.LINKED,
-        purify_shape: MetaTree.Shape=MetaTree.Shape.LINKED,
+        st_shape: MetaTree.Shape=MetaTree.Shape.LINKED,
+        pt_shape: MetaTree.Shape=MetaTree.Shape.LINKED,
         ) -> None:
         
         super().__init__(edges, gate)
-        self.swap_shape = swap_shape
-        self.purify_shape = purify_shape
+        self.st_shape = st_shape
+        self.pt_shape = pt_shape
+
 
     def purify_on_edge(self, fids: list[qu.FidType], allocs: list[int]) -> 'list[qu.FidType]':
         pfids = []
         for i in range(len(fids)):
-            if self.purify_shape == MetaTree.Shape.LINKED:
+            if self.pt_shape == MetaTree.Shape.LINKED:
                 pfids.append(self.gate.seq_purify([fids[i]] * allocs[i])[0])
-            elif self.purify_shape == MetaTree.Shape.BALANCED:
+            elif self.pt_shape == MetaTree.Shape.BALANCED:
                 pfids.append(self.gate.balanced_purify([fids[i]] * allocs[i])[0])
 
         return pfids
     
     def swap_purify(self, fids: list[qu.FidType], allocs: list[int]) -> qu.FidType:
         pfids = self.purify_on_edge(fids, allocs)
-        if self.swap_shape == MetaTree.Shape.LINKED:
+        if self.st_shape == MetaTree.Shape.LINKED:
             f, p = self.gate.seq_swap(pfids)
-        elif self.swap_shape == MetaTree.Shape.BALANCED:
+        elif self.st_shape == MetaTree.Shape.BALANCED:
             f, p = self.gate.balanced_swap(pfids)
         return f, p
 
@@ -220,9 +326,9 @@ class GRDSolver(Solver):
         for edge in self.edges:
             self.alloc[edge] = 1
         pfids = self.purify_on_edge(self.fids, list(self.alloc.values()))
-        if self.swap_shape == MetaTree.Shape.LINKED:
+        if self.st_shape == MetaTree.Shape.LINKED:
             f, p = self.gate.seq_swap(pfids)
-        elif self.swap_shape == MetaTree.Shape.BALANCED:
+        elif self.st_shape == MetaTree.Shape.BALANCED:
             f, p = self.gate.balanced_swap(pfids)
         while f < fth and sum(self.alloc.values()) <= cost_cap:
             f_max = 0
@@ -230,11 +336,11 @@ class GRDSolver(Solver):
             for edge in self.edges:
                 self.alloc[edge] += 1
                 pfids = self.purify_on_edge(self.fids, list(self.alloc.values()))
-                if self.swap_shape == MetaTree.Shape.LINKED:
+                if self.st_shape == MetaTree.Shape.LINKED:
                     f_new, p = self.gate.seq_swap(pfids)
-                elif self.swap_shape == MetaTree.Shape.BALANCED:
+                elif self.st_shape == MetaTree.Shape.BALANCED:
                     f_new, p = self.gate.balanced_swap(pfids)
-                if f_new > f_max:
+                if f_new >= f_max:
                     f_max = f_new
                     edge_max = edge
 
@@ -243,20 +349,22 @@ class GRDSolver(Solver):
             self.alloc[edge_max] += 1
             # print(f_max - f)
             f = f_max
+
+        self.final_fid = f
              
     def report(self) -> 'tuple[qu.FidType, ExpAllocType]':
         # introduce probability of success
         psts: 'list[Node]' = []
         for i, edge in enumerate(self.edges):
             num = int(np.ceil(self.alloc[edge]))
-            pst = SPST.build_pst(self.gate, edge, self.fids[i], num, self.purify_shape)
+            pst = SPST.build_pst(self.gate, edge, self.fids[i], num, self.pt_shape)
             psts.append(pst)
 
         pfids = [ pst.fid for pst in psts ]
         pedges = { edge: pfids[i] for i, edge in enumerate(self.edges) }
         tree = SPST(pedges, self.gate)
         costs = [ pst.cost for pst in psts ]
-        tree.build_sst(shape=self.swap_shape, costs=costs)
+        tree.build_sst(shape=self.st_shape, costs=costs)
 
         alloc = ExpAllocType({})
         TreeSolver._traverse(tree.root, 1, alloc)
@@ -268,6 +376,7 @@ class GRDSolver(Solver):
 
         # alloc = ExpAllocType({})
         # TreeSolver._traverse(tree.root, 1, alloc)
+        # print(tree.root.fid, self.final_fid)
         return tree.root.fid, alloc
 
 
@@ -353,12 +462,100 @@ class EPPSolver(Solver):
         return tree.root.fid, alloc
 
 
+class NestedSolver(Solver):
+    def __init__(self, edges: dict[EdgeTuple, qu.FidType], gate: qu.Gate,
+        swap_shape: MetaTree.Shape=MetaTree.Shape.LINKED,
+        purify_shape: MetaTree.Shape=MetaTree.Shape.LINKED,
+        ) -> None:
+        self.swap_shape = swap_shape
+        self.purify_shape = purify_shape
+
+                 
+        super().__init__(edges, gate)
+
+    def nested_purify(self, fids, costs, L, M, n) -> 'list[qu.FidType]':
+        if n == 0:
+            return fids[0], costs[0]
+        assert len(fids) == pow(L, n)
+        assert isinstance(L, int)
+        assert isinstance(M, int)
+        assert isinstance(n, int)
+
+        seg_num = int(len(fids) / L)
+        virtual_edges = [ ((i, i+1), fids[i]) for i in range(len(fids)) ]
+        segments = []
+        new_fids = []
+        new_costs = []
+        for i in range(seg_num):
+            # connect the edges in the segment
+            segment = virtual_edges[i*L:(i+1)*L]
+            segment = { edge: fid for edge, fid in segment }
+            tree = SPST(segment, self.gate)
+            tree.build_sst(shape=MetaTree.Shape.LINKED, costs=costs[i*L:(i+1)*L])
+            fid, cost = tree.root.fid, tree.root.cost
+
+            # purify the segment
+            root = SPST.build_pst(self.gate, (0, 1), fid, M, self.purify_shape, cost)
+            fid, cost = root.fid, root.cost
+            new_fids.append(fid)
+            new_costs.append(cost)
+
+        return self.nested_purify(new_fids, new_costs, L, M, n-1)
+
+
+    def solve(self, budget: int, M_option='floor') -> Node:
+        """
+        edge number should be chosen from
+        [2, 4, 8, 16]
+        [3, 9, 27]
+        [5, 25]
+        [6]
+        """
+        N = len(self.edges)
+
+        N_legal = range(1, 31, 1)
+        
+        assert N in N_legal, f"edge number {N} is not supported"
+
+        L = range(1, N+1)
+        n = [1, 2, 3, 4]
+        M = None
+
+        max_fid, max_cost = 0, 0
+        max_L, max_M, max_n = 1, 1, 1
+        for l in L:
+            for ni in n:
+                if pow(l, ni) != N:
+                    continue
+                single_budget = budget / pow(l, ni)
+                M = pow(single_budget, 1/ni)
+                M_FLOOR = int(np.floor(M))
+                M_CEIL = int(np.ceil(M))
+                if M_option == 'floor':
+                    fid, cost = self.nested_purify(self.fids, [1] * N, l, M_FLOOR, ni)
+                elif M_option == 'ceil':
+                    fid, cost = self.nested_purify(self.fids, [1] * N, l, M_CEIL, ni)
+                if fid > max_fid:
+                    max_fid = fid
+                    max_cost = cost
+                    max_L = l
+                    max_M = M_FLOOR
+                    max_n = ni
+
+        edge_cost = max_cost / max_L
+        self.alloc = { edge: edge_cost for edge in self.edges }
+        self.final_fid = max_fid
+    
+    def report(self) -> 'tuple[qu.FidType, ExpAllocType]':
+        
+        return self.final_fid, self.alloc
 
 
 
-def test_DPSolver(edges, op, budget) -> float:
+
+def test_DPSolver(edges, op, budget, eps=0.4, interval=1):
     solver = DPSolver(edges, op)
-    solver.solve(budget)
+    solver.solve(budget, eps, interval)
     f, alloc = solver.report()
 
     return f, list(alloc.values())
@@ -397,3 +594,25 @@ def test_EPPSolver(edges, op, fth=0.9, cost_cap=1000,
     f, alloc = solver.report()
 
     return f, list(alloc.values())
+
+
+def test_NestedSolver(edges, op, budget, M_option='floor'):
+    solver = NestedSolver(edges, op)
+    solver.solve(budget, M_option)
+    f, alloc = solver.report()
+
+    return f, list(alloc.values())
+
+
+if __name__ == "__main__":
+    import os
+    import sys
+
+    sys.path.append(os.getcwd())
+    sys.path.append("/home/ljy/projects/sptree/src/")
+    gate = qu.GDP
+    edges = test_edges_gen(16, 0.9)
+    # test_NestedSolver(edges, gate, 0.9, 1000)
+    f, allocs = test_DPSolver(edges, gate, 100)
+
+    print(f, sum(allocs), allocs)

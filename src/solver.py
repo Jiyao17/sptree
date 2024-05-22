@@ -10,7 +10,7 @@ from gurobipy import GRB
 
 from physical.network import QuNet, QuNetTask, Edge, EdgeTuple, NodeID, NodePair, StaticPath, BufferedNode
 import physical.quantum as qu
-from sps.solver import test_TreeSolver, test_GRDSolver, test_EPPSolver, SolverType
+from sps.solver import test_TreeSolver, test_GRDSolver, test_EPPSolver, test_DPSolver, test_NestedSolver, SolverType
 from physical.topology import ATT
 
 
@@ -45,6 +45,7 @@ class Optimizer(ABC):
 
 
 class QuNetOptim:
+    tree_budge: dict = {}
     def __init__(self, task: QuNetTask,) -> None:
         self.task = copy.deepcopy(task)
         self.qunet = copy.deepcopy(task.qunet)
@@ -110,7 +111,7 @@ class QuNetOptim:
 
         return self.params
 
-    def path_prep(self, solver_type: SolverType) -> 'tuple[int, int]':
+    def path_prep(self, solver_type: SolverType, arg=None) -> 'tuple[int, int]':
         # path allocations
         self.params['A']: 'dict[tuple[NodePair, StaticPath, EdgeTuple], qu.ExpCostType]' = {}
         self.A = self.params['A']
@@ -132,10 +133,24 @@ class QuNetOptim:
                 fth = self.F[k]
                 if solver_type == SolverType.TREE:
                     f, allocs = test_TreeSolver(edges, gate, fth, cost_cap)
+                    QuNetOptim.tree_budge[(k, p)] = sum(allocs)
                 elif solver_type == SolverType.GRD:
-                    f, allocs = test_GRDSolver(edges, gate, fth, cost_cap)
+                    f, allocs = test_GRDSolver(edges, gate, fth, cost_cap,
+                                )
                 elif solver_type == SolverType.EPP:
                     f, allocs = test_EPPSolver(edges, gate, fth, cost_cap)
+                elif solver_type == SolverType.DP:
+                    f, allocs = test_DPSolver(edges, gate, int(QuNetOptim.tree_budge[(k, p)]*arg))
+                    if f < fth:
+                        allocs = [1000000] * len(allocs)
+                elif solver_type == SolverType.NESTED_F:
+                    f, allocs = test_NestedSolver(edges, gate, int(QuNetOptim.tree_budge[(k, p)])+1, 'floor')
+                    if f < fth:
+                        allocs = [1000000] * len(allocs)
+                elif solver_type == SolverType.NESTED_C:
+                    f, allocs = test_NestedSolver(edges, gate, int(QuNetOptim.tree_budge[(k, p)])+1, 'ceil')
+                    if f < fth:
+                        allocs = [1000000] * len(allocs)
                 for i, e in enumerate(p):
                     self.A[k, p, e] = allocs[i]
 
@@ -201,12 +216,13 @@ class QuNetOptim:
 def test_QuNetOptim(
         task: QuNetTask,
         solver_type=SolverType.TREE, 
+        arg=None,
         ):
 
 
     optm = QuNetOptim(task)
     optm.import_params()
-    pair_num, path_num = optm.path_prep(solver_type)
+    pair_num, path_num = optm.path_prep(solver_type, arg)
     # print(f"Total pair number: {pair_num}, total path number: {path_num}")
 
     optm.add_constrs()
