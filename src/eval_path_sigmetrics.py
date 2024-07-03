@@ -64,8 +64,7 @@ def test_dp_sys_1(fth, exp_num):
     edge_num_range = range(2, 26, 1)
     # edge_num_range = range(4, 11, 2)
 
-    labels = ["TREE", "GRDY", "EPP", "NESTED-F", "NESTED-C", "DP-1.2", "DP-1.3"]
-    # labels = ["TREE", "GRDY", "EPP" ]
+    labels = ["TREE", "GRDY", "EPP"]
 
     NESTED_EDGE_NUMS = edge_num_range
     
@@ -109,47 +108,47 @@ def test_dp_sys_1(fth, exp_num):
             test_cost[2] += sum(allocs)
             test_fid[2] += f
 
-            if edge_num in NESTED_EDGE_NUMS:
-                start = time.time()
-                f, allocs = test_NestedSolver(edges, op, budget=tree_budget, M_option='floor')
-                test_time[3] += time.time() - start
-                test_cost[3] += sum(allocs)
-                test_fid[3] += f
+            # if edge_num in NESTED_EDGE_NUMS:
+            #     start = time.time()
+            #     f, allocs = test_NestedSolver(edges, op, budget=tree_budget, M_option='floor')
+            #     test_time[3] += time.time() - start
+            #     test_cost[3] += sum(allocs)
+            #     test_fid[3] += f
 
-                start = time.time()
-                f, allocs = test_NestedSolver(edges, op, budget=tree_budget, M_option='ceil')
-                test_time[4] += time.time() - start
-                test_cost[4] += sum(allocs)
-                test_fid[4] += f
-            else:
-                test_time[3] += np.nan
-                test_cost[3] += np.nan
-                test_fid[3] += np.nan
+            #     start = time.time()
+            #     f, allocs = test_NestedSolver(edges, op, budget=tree_budget, M_option='ceil')
+            #     test_time[4] += time.time() - start
+            #     test_cost[4] += sum(allocs)
+            #     test_fid[4] += f
+            # else:
+            #     test_time[3] += np.nan
+            #     test_cost[3] += np.nan
+            #     test_fid[3] += np.nan
 
-                test_time[4] += np.nan
-                test_cost[4] += np.nan
-                test_fid[4] += np.nan
+            #     test_time[4] += np.nan
+            #     test_cost[4] += np.nan
+            #     test_fid[4] += np.nan
 
-            if  edge_num < dp_edge_limit:
-                start = time.time()
-                f, allocs = test_DPSolver(edges, op, int(tree_budget*1.2), eps=0)
-                test_time[5] += time.time() - start
-                test_cost[5] += sum(allocs)
-                test_fid[5] += f
+            # if  edge_num < dp_edge_limit:
+            #     start = time.time()
+            #     f, allocs = test_DPSolver(edges, op, int(tree_budget*1.2), eps=0)
+            #     test_time[5] += time.time() - start
+            #     test_cost[5] += sum(allocs)
+            #     test_fid[5] += f
 
-                start = time.time()
-                f, allocs = test_DPSolver(edges, op, int(tree_budget*1.3), eps=0)
-                test_time[6] += time.time() - start
-                test_cost[6] += sum(allocs)
-                test_fid[6] += f
-            else:
-                test_time[5] += np.nan
-                test_cost[5] += np.nan
-                test_fid[5] += np.nan
+            #     start = time.time()
+            #     f, allocs = test_DPSolver(edges, op, int(tree_budget*1.3), eps=0)
+            #     test_time[6] += time.time() - start
+            #     test_cost[6] += sum(allocs)
+            #     test_fid[6] += f
+            # else:
+            #     test_time[5] += np.nan
+            #     test_cost[5] += np.nan
+            #     test_fid[5] += np.nan
 
-                test_time[6] += np.nan
-                test_cost[6] += np.nan
-                test_fid[6] += np.nan
+            #     test_time[6] += np.nan
+            #     test_cost[6] += np.nan
+            #     test_fid[6] += np.nan
                 
 
             # start = time.time()
@@ -205,8 +204,8 @@ def test_dp_sys_2(fth, exp_num):
     if fth <= 0.9:
         dp_edge_limit = 10
 
-    labels = ["TREE", "NESTED-F", "NESTED-C", "DP-1.2", "DP-1.3"]
-    # labels = ["TREE", "GRDY", "EPP"]
+    # labels = ["TREE", "NESTED-F", "NESTED-C", "DP-1.2", "DP-1.3"]
+    labels = ["TREE", "GRDY", "EPP"]
 
     NESTED_EDGE_NUMS = edge_num_range
 
@@ -229,19 +228,19 @@ def test_dp_sys_2(fth, exp_num):
             test_fid[0] += f
             tree_budget = np.ceil(sum(allocs)).astype(int)
 
-            # start = time.time()
-            # f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
-            #                         MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
-            # test_time[1] += time.time() - start
-            # test_cost[1] += sum(allocs)
-            # test_fid[1] += f
+            start = time.time()
+            f, allocs = test_GRDSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
+            test_time[1] += time.time() - start
+            test_cost[1] += sum(allocs)
+            test_fid[1] += f
 
-            # start = time.time()
-            # f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
-            #                         MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
-            # test_time[2] += time.time() - start
-            # test_cost[2] += sum(allocs)
-            # test_fid[2] += f
+            start = time.time()
+            f, allocs = test_EPPSolver(edges, op, fth, cost_cap,
+                                    MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
+            test_time[2] += time.time() - start
+            test_cost[2] += sum(allocs)
+            test_fid[2] += f
 
             if edge_num in NESTED_EDGE_NUMS:
                 start = time.time()
@@ -970,13 +969,13 @@ def test_wn_others(fth, exp_num):
 if __name__ == '__main__':
     # test_dp_sys(0.8, 10)
 
-    # test_dp_sys_1(0.9, 10)
-    # test_dp_sys_1(0.99, 10)
-    # test_dp_sys_1(0.9999, 10)
+    test_dp_sys_1(0.9, 10)
+    test_dp_sys_1(0.99, 10)
+    test_dp_sys_1(0.9999, 10)
 
-    test_dp_sys_2(0.9, 20)
-    test_dp_sys_2(0.99, 20)
-    test_dp_sys_2(0.9999, 20)
+    # test_dp_sys_2(0.9, 20)
+    # test_dp_sys_2(0.99, 20)
+    # test_dp_sys_2(0.9999, 20)
 
     # test_wn_sys_full(0.8, 10)
     # test_wn_sys_full_2(0.85, 20)
