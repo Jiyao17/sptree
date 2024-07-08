@@ -269,7 +269,7 @@ def test_binary_cost_all(fth, exp_num, gate=qu.GDP):
         gate_desc = "L"
 
     cost_cap = 1e5
-    edge_num_range = range(2, 26, 1)
+    edge_num_range = range(2, 16, 1)
     # edge_num_range = range(4, 11, 2)
 
     dp_edge_limit = 6
@@ -372,6 +372,8 @@ def test_binary_cost_all(fth, exp_num, gate=qu.GDP):
     xlabel = "Hop Number"
     ylabel = "Cost"
     markers = ['o', 's', 'v', 'd', 'p', 'x', 'h', '>', '<']
+    # default color cycle
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     filename = "data/path/dp_path_cost_f={}_noise={}.png".format(fth, gate_desc)
     draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, yscale='log')
 
@@ -381,6 +383,7 @@ def test_binary_cost_all(fth, exp_num, gate=qu.GDP):
     draw_2y_lines(x, ys1, ys2, xlabel, 
         y1_label=ylabel, y2_label=ylabel,
         line1_labels=labels[:5], line2_labels=labels[5:],
+        line1_colors=colors[:5], line2_colors=colors[5:],
         line1_markers=markers[:5], line2_markers=markers[5:],
         xscale='linear', y1_scale='linear', y2_scale='log',
         xreverse=False, y1_reverse=False, y2_reverse=False,
@@ -1166,6 +1169,7 @@ def test_wn_others(fth, exp_num):
                 
 
 if __name__ == '__main__':
+    exp_num = 1
     # test_dp_sys(0.8, 10)
 
     # test_binary_all_time(0.9, 10)
@@ -1176,9 +1180,9 @@ if __name__ == '__main__':
     # test_binary_cost_1(0.99, 20)
     # test_binary_cost_1(0.9999, 20)
 
-    test_binary_cost_all(0.9, 10)
-    test_binary_cost_all(0.99, 10)
-    test_binary_cost_all(0.9999, 10)
+    test_binary_cost_all(0.9, exp_num)
+    test_binary_cost_all(0.99, exp_num)
+    test_binary_cost_all(0.9999, exp_num)
 
 
     # test_wn_sys_full(0.8, 10)

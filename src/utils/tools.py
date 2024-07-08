@@ -60,6 +60,7 @@ def draw_2y_lines(
     x, ys1, ys2,
     xlabel, y1_label, y2_label,
     line1_labels, line2_labels,
+    line1_colors, line2_colors,
     line1_markers, line2_markers,
     xscale='linear', y1_scale='linear', y2_scale='linear',
     xreverse=False, y1_reverse=False, y2_reverse=False,
@@ -75,24 +76,32 @@ def draw_2y_lines(
 
     ax2 = ax1.twinx()
 
-    for y1, label, marker in zip(ys1, line1_labels, line1_markers):
+    for y1, label, color, marker in zip(ys1, line1_labels, line1_colors, line1_markers):
         # find first y > ylim[1]
         if y1_lim is not None:
             idx = np.where(y1 > y1_lim[1])[0]
             if len(idx) > 0:
                 y1 = y1[:idx[0]]
                 x = x[:idx[0]]
-        ax1.plot(x, y1, label=label, marker=marker, markerfacecolor='none', markersize=10)
+        ax1.plot(
+            x, y1, 
+            label=label, color=color, marker=marker, 
+            markerfacecolor='none', markersize=10
+            )
     
-    for y2, label, marker in zip(ys2, line2_labels, line2_markers):
+    for y2, label, color, marker in zip(ys2, line2_labels, line2_colors, line2_markers):
         # find first y > ylim[1]
         if y2_lim is not None:
             idx = np.where(y2 > y2_lim[1])[0]
             if len(idx) > 0:
                 y2 = y2[:idx[0]]
                 x = x[:idx[0]]
-        ax2.plot(x, y2, label=label, marker=marker, markerfacecolor='none', markersize=10)
-    
+        ax2.plot(x, y2, 
+            label=label, color=color, marker=marker, 
+            markerfacecolor='none', markersize=10
+            )
+    # force x ticks to be integers and multiples of 5
+    ax1.xaxis.set_major_locator(plt.MultipleLocator(5))
     ax1.set_xlabel(xlabel, fontsize=20)
     ax1.set_ylabel(y1_label, fontsize=20)
     ax2.set_ylabel(y2_label, fontsize=20)
