@@ -1622,7 +1622,7 @@ if __name__ == '__main__':
     # 3 figures for different fth
     # test_binary_cost_all(0.9, exp_num)
     # test_binary_cost_all(0.99, exp_num)
-    # test_binary_cost_all(0.9999, exp_num)
+    test_binary_cost_all(0.9999, exp_num)
 
     # 3 figures for different noise
     # test_binary_succ_all(0.9, exp_num, gate=qu.GDP)
@@ -1636,9 +1636,9 @@ if __name__ == '__main__':
 
     # 3 figures for different noise (Werner)
     # test_werner_succ does not differ much, test_werner_cost is enough
-    test_werner_cost(0.9, exp_num, gate=qu.GWP)
-    test_werner_cost(0.9, exp_num, gate=qu.GWH)
-    test_werner_cost(0.9, exp_num, gate=qu.GWL)
+    # test_werner_cost(0.9, exp_num, gate=qu.GWP)
+    # test_werner_cost(0.9, exp_num, gate=qu.GWH)
+    # test_werner_cost(0.9, exp_num, gate=qu.GWL)
 
     # test_wn_sys_full(0.8, 10)
     # test_wn_sys_full_2(0.85, 20)
