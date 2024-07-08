@@ -48,7 +48,7 @@ class HWParam:
         self.eta = self.params[2]
 
 
-        if self.params[0] == self.params[1] == self.params[2] == self.params[3] == 1:
+        if self.params[0] == self.params[1] == self.params[2] == 1:
             self.noisy = False
         else:
             self.noisy = True
@@ -56,6 +56,12 @@ class HWParam:
 
 # perfect hardware
 HWP = HWParam((1, 1, 1, 1))
+# perfect hardware with linear optics swapping, low success rate
+HWP_LOSL = HWParam((1, 1, 1, 0.5))
+# perfect hardware with linear optics swapping, medium success rate
+HWP_LOSM = HWParam((1, 1, 1, 0.625))
+# perfect hardware with linear optics swapping, high success rate
+HWP_LOSH = HWParam((1, 1, 1, 0.7))
 # noisy hardware, high accuracy
 HWH = HWParam((0.99999, 0.99999, 0.9999, 0.9999))
 # noisy hardware, medium accuracy
@@ -283,6 +289,13 @@ class Gate:
 
 # Dephased operation, perfect
 GDP = Gate(EntType.DEPHASED, HWP)
+# Dephased operation, perfect, with linear optics swapping, low success rate
+GDP_LOSL = Gate(EntType.DEPHASED, HWP_LOSL)
+# Dephased operation, perfect, with linear optics swapping, medium success rate
+GDP_LOSM = Gate(EntType.DEPHASED, HWP_LOSM)
+# Dephased operation, perfect, with linear optics swapping, high success rate
+GDP_LOSH = Gate(EntType.DEPHASED, HWP_LOSH)
+
 # Werner operation, perfect
 GWP = Gate(EntType.WERNER, HWP)
 # Werner operation, noisy, high accuracy
