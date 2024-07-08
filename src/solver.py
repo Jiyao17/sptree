@@ -142,6 +142,7 @@ class QuNetOptim:
                 elif solver_type == SolverType.DP:
                     f, allocs = test_DPSolver(edges, gate, int(QuNetOptim.tree_budge[(k, p)]*arg))
                     if f < fth:
+                        # not qualified, disable this path
                         allocs = [1000000] * len(allocs)
                 elif solver_type == SolverType.NESTED_F:
                     f, allocs = test_NestedSolver(edges, gate, int(QuNetOptim.tree_budge[(k, p)])+1, 'floor')

@@ -19,7 +19,7 @@ OpResultType = NewType('OpResultType', tuple[FidType, ProbType])
 
 class EntType(Enum):
     # input state type of quantum operations
-    DEPHASED = 1
+    BINARY = 1
     WERNER = 2
 
 
@@ -63,16 +63,16 @@ HWP_LOSM = HWParam((1, 1, 1, 0.625))
 # perfect hardware with linear optics swapping, high success rate
 HWP_LOSH = HWParam((1, 1, 1, 0.7))
 # noisy hardware, high accuracy
-HWH = HWParam((0.99999, 0.99999, 0.9999, 0.9999))
+HWH = HWParam((0.99999, 0.99999, 0.9999, 0.7))
 # noisy hardware, medium accuracy
-HWM = HWParam((0.9999, 0.9999, 0.999, 0.999))
+HWM = HWParam((0.9999, 0.9999, 0.999, 0.625))
 # noisy hardware, low accuracy
-HWL = HWParam((0.999, 0.999, 0.99, 0.99))
+HWL = HWParam((0.999, 0.999, 0.99, 0.5))
 
 
 class Gate:
     def __init__(self, 
-            ent_type: EntType = EntType.DEPHASED,
+            ent_type: EntType = EntType.BINARY,
             hdw: HWParam = HWP,
         ) -> None:
         self.ent_type = ent_type
@@ -82,12 +82,12 @@ class Gate:
         # self.p = ms_accu.p
         # self.eta = ms_accu.eta
 
-        if self.ent_type == EntType.DEPHASED:
+        if self.ent_type == EntType.BINARY:
             assert self.hw.noisy == False, \
                 "Noisy measurement not supported in dephased system"
 
     def swap(self, f1, f2) -> 'OpResultType':
-        if self.ent_type == EntType.DEPHASED:
+        if self.ent_type == EntType.BINARY:
             f = self._swap_dephased(f1, f2)
         elif self.ent_type == EntType.WERNER:
             f = self._swap_werner(f1, f2)
@@ -110,7 +110,7 @@ class Gate:
             if i == partial:
                 pass
             else:
-                if self.ent_type == EntType.DEPHASED:
+                if self.ent_type == EntType.BINARY:
                     prod *= fids[i] - 1/2
                 elif self.ent_type == EntType.WERNER:
                     prod *= fids[i] - 1/4
@@ -120,7 +120,7 @@ class Gate:
         return prod
 
     def swap_grad(self, f1, f2, partial,) -> 'tuple[FidType, ExpCostType, ExpCostType]':
-        if self.ent_type == EntType.DEPHASED:
+        if self.ent_type == EntType.BINARY:
             grad_f = self._swap_dephased_grad(f1, f2, partial)
         elif self.ent_type == EntType.WERNER:
             grad_f = self._swap_werner_grad(f1, f2, partial)
@@ -146,7 +146,7 @@ class Gate:
         return fids[0], prob
 
     def purify(self, f1, f2) -> 'OpResultType':
-        if self.ent_type == EntType.DEPHASED:
+        if self.ent_type == EntType.BINARY:
             return self._purify_dephased(f1, f2)
         elif self.ent_type == EntType.WERNER:
             return self._purify_werner(f1, f2)
@@ -183,7 +183,7 @@ class Gate:
 
 
     def purify_grad(self, f1, f2, n1, n2, partial,) -> 'tuple[FidType, ExpCostType, ExpCostType]':
-        if self.ent_type == EntType.DEPHASED:
+        if self.ent_type == EntType.BINARY:
             grad_f, grad_cn, grad_cf = self._purify_dephased_grad(f1, f2, n1, n2, partial)
         elif self.ent_type == EntType.WERNER:
             grad_f, grad_cn, grad_cf = self._purify_werner_grad(f1, f2, n1, n2, partial)
@@ -288,13 +288,13 @@ class Gate:
 
 
 # Dephased operation, perfect
-GDP = Gate(EntType.DEPHASED, HWP)
+GDP = Gate(EntType.BINARY, HWP)
 # Dephased operation, perfect, with linear optics swapping, low success rate
-GDP_LOSL = Gate(EntType.DEPHASED, HWP_LOSL)
+GDP_LOSL = Gate(EntType.BINARY, HWP_LOSL)
 # Dephased operation, perfect, with linear optics swapping, medium success rate
-GDP_LOSM = Gate(EntType.DEPHASED, HWP_LOSM)
+GDP_LOSM = Gate(EntType.BINARY, HWP_LOSM)
 # Dephased operation, perfect, with linear optics swapping, high success rate
-GDP_LOSH = Gate(EntType.DEPHASED, HWP_LOSH)
+GDP_LOSH = Gate(EntType.BINARY, HWP_LOSH)
 
 # Werner operation, perfect
 GWP = Gate(EntType.WERNER, HWP)

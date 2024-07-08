@@ -272,11 +272,17 @@ def test_binary_cost_all(fth, exp_num, gate=qu.GDP):
     edge_num_range = range(2, 16, 1)
     # edge_num_range = range(4, 11, 2)
 
-    dp_edge_limit = 6
+    binary_edge_limit = 4
     if fth <= 0.99:
-        dp_edge_limit = 8
+        if gate == qu.GDP:
+            binary_edge_limit = 8
+        elif gate == qu.GDP_LOSH:
+            binary_edge_limit = 6
     if fth <= 0.9:
-        dp_edge_limit = 10
+        if gate == qu.GDP:
+            binary_edge_limit = 10
+        elif gate == qu.GDP_LOSH:
+            binary_edge_limit = 6
 
     # labels = ["TREE", "NESTED-F", "NESTED-C", "DP-1.2", "DP-1.3"]
     labels = ["TREE", "GRDY", "EPP", "DP-1.2", "DP-1.3", "NESTED-F", "NESTED-C", ]
@@ -315,7 +321,7 @@ def test_binary_cost_all(fth, exp_num, gate=qu.GDP):
             test_cost[2] += sum(allocs)
             test_fid[2] += f
 
-            if  edge_num < dp_edge_limit:
+            if  edge_num < binary_edge_limit:
                 start = time.time()
                 f, allocs = test_DPSolver(edges, gate, int(tree_budget*1.2), eps=0)
                 test_time[3] += time.time() - start
@@ -374,12 +380,12 @@ def test_binary_cost_all(fth, exp_num, gate=qu.GDP):
     markers = ['o', 's', 'v', 'd', 'p', 'x', 'h', '>', '<']
     # default color cycle
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    filename = "data/path/dp_path_cost_f={}_noise={}.png".format(fth, gate_desc)
+    filename = "data/path/binary_path_cost_f={}_noise={}.png".format(fth, gate_desc)
     draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, yscale='log')
 
     ys1 = costs[:, :5].T
     ys2 = costs[:, 5:].T
-    filename = "data/path/dp_path_cost_f={}_noise={}_2y.png".format(fth, gate_desc)
+    filename = "data/path/binary_path_cost_f={}_noise={}_2y.png".format(fth, gate_desc)
     draw_2y_lines(x, ys1, ys2, xlabel, 
         y1_label=ylabel, y2_label=ylabel,
         line1_labels=labels[:5], line2_labels=labels[5:],
@@ -393,13 +399,455 @@ def test_binary_cost_all(fth, exp_num, gate=qu.GDP):
 
     ys = times.T
     ylabel = "Time (s)"
-    filename = "data/path/dp_path_time_f={}_noise={}.png".format(fth, gate_desc)
+    filename = "data/path/binary_path_time_f={}_noise={}.png".format(fth, gate_desc)
     draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, yscale='log')
 
     ys = fids.T
     ylabel = "Fidelity"
-    filename = "data/path/dp_path_fid_f={}_noise={}.png".format(fth, gate_desc)
+    filename = "data/path/binary_path_fid_f={}_noise={}.png".format(fth, gate_desc)
     draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, ylim=(0.5, 1))
+
+def test_binary_succ_all(fth, exp_num, gate=qu.GDP):
+    if gate == qu.GDP:
+        gate_desc = "P"
+    elif gate == qu.GDP_LOSH:
+        gate_desc = "H"
+    elif gate == qu.GDP_LOSM:
+        gate_desc = "M"
+    elif gate == qu.GDP_LOSL:
+        gate_desc = "L"
+
+    cost_cap = 1e5
+    edge_num_range = range(2, 16, 1)
+    # edge_num_range = range(4, 11, 2)
+
+    binary_edge_limit = 4
+    if fth <= 0.99:
+        if gate == qu.GDP:
+            binary_edge_limit = 8
+        elif gate == qu.GDP_LOSH:
+            binary_edge_limit = 6
+    if fth <= 0.9:
+        if gate == qu.GDP:
+            binary_edge_limit = 10
+        elif gate == qu.GDP_LOSH:
+            binary_edge_limit = 6
+
+    # labels = ["TREE", "NESTED-F", "NESTED-C", "DP-1.2", "DP-1.3"]
+    labels = ["TREE", "DP-1.2", "DP-1.3", "GRDY", "EPP", "NESTED-F", "NESTED-C", ]
+
+    NESTED_EDGE_NUMS = edge_num_range
+
+    costs = np.zeros((len(edge_num_range), len(labels)))
+    times = np.zeros((len(edge_num_range), len(labels)))
+    fids = np.zeros((len(edge_num_range), len(labels)))
+    for edge_num in edge_num_range:
+        test_cost = np.zeros((len(labels)))
+        test_time = np.zeros((len(labels)))
+        test_fid = np.zeros((len(labels)))
+
+        for i in range(exp_num):
+            edges = test_edges_gen(edge_num, (0.7, 0.95))
+
+            start = time.time()
+            f, allocs = test_TreeSolver(edges, gate, fth, cost_cap, False)
+            idx = labels.index("TREE")
+            test_time[idx] += time.time() - start
+            test_cost[idx] += sum(allocs)
+            test_fid[idx] += f
+            tree_budget = np.ceil(sum(allocs)).astype(int)
+
+            start = time.time()
+            f, allocs = test_GRDSolver(edges, gate, fth, cost_cap,
+                                    MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
+            idx = labels.index("GRDY")
+            test_time[idx] += time.time() - start
+            test_cost[idx] += sum(allocs)
+            test_fid[idx] += f
+
+            start = time.time()
+            f, allocs = test_EPPSolver(edges, gate, fth, cost_cap,
+                                    MetaTree.Shape.LINKED, MetaTree.Shape.LINKED)
+            idx = labels.index("EPP")
+            test_time[idx] += time.time() - start
+            test_cost[idx] += sum(allocs)
+            test_fid[idx] += f
+                
+            idx1 = labels.index("DP-1.2") 
+            idx2 = labels.index("DP-1.3")
+            if  edge_num <= binary_edge_limit:
+                start = time.time()
+                f, allocs = test_DPSolver(edges, gate, int(tree_budget*1.2), eps=0)
+                test_time[idx1] += time.time() - start
+                test_cost[idx1] += sum(allocs)
+                test_fid[idx1] += f
+
+                start = time.time()
+                f, allocs = test_DPSolver(edges, gate, int(tree_budget*1.3), eps=0)
+                test_time[idx2] += time.time() - start
+                test_cost[idx2] += sum(allocs)
+                test_fid[idx2] += f
+            else:
+                test_time[idx1] += np.nan
+                test_cost[idx1] += np.nan
+                test_fid[idx1] += np.nan
+
+                test_time[idx2] += np.nan
+                test_cost[idx2] += np.nan
+                test_fid[idx2] += np.nan
+
+            idx1 = labels.index("NESTED-F")
+            idx2 = labels.index("NESTED-C")
+            if edge_num in NESTED_EDGE_NUMS:
+                start = time.time()
+                f, allocs = test_NestedSolver(edges, gate, budget=tree_budget, M_option='floor')
+                test_time[idx1] += time.time() - start
+                test_cost[idx1] += sum(allocs)
+                test_fid[idx1] += f
+
+                start = time.time()
+                f, allocs = test_NestedSolver(edges, gate, budget=tree_budget, M_option='ceil')
+                test_time[idx2] += time.time() - start
+                test_cost[idx2] += sum(allocs)
+                test_fid[idx2] += f
+            else:
+                test_time[idx1] += np.nan
+                test_cost[idx1] += np.nan
+                test_fid[idx1] += np.nan
+
+                test_time[idx2] += np.nan
+                test_cost[idx2] += np.nan
+                test_fid[idx2] += np.nan
+
+
+                                      
+
+
+        costs[edge_num_range.index(edge_num)] = test_cost / exp_num
+        times[edge_num_range.index(edge_num)] = test_time / exp_num
+        fids[edge_num_range.index(edge_num)] = test_fid / exp_num
+
+        print("edge num {} done".format(edge_num))
+
+    x = edge_num_range
+    ys = costs.T
+    xlabel = "Hop Number"
+    ylabel = "Cost"
+    markers = ['o', 's', 'v', 'd', 'p', 'x', 'h', '>', '<']
+    # default color cycle
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    filename = "data/path/binary_path_cost_f={}_noise={}.png".format(fth, gate_desc)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, yscale='log')
+
+    ys1 = costs[:, :3].T
+    ys2 = costs[:, 3:].T
+    filename = "data/path/binary_path_cost_f={}_noise={}_2y.png".format(fth, gate_desc)
+    draw_2y_lines(x, ys1, ys2, xlabel, 
+        y1_label=ylabel, y2_label=ylabel,
+        line1_labels=labels[:3], line2_labels=labels[3:],
+        line1_colors=colors[:3], line2_colors=colors[3:],
+        line1_markers=markers[:3], line2_markers=markers[3:],
+        xscale='linear', y1_scale='linear', y2_scale='log',
+        xreverse=False, y1_reverse=False, y2_reverse=False,
+        xlim=None, y1_lim=None, y2_lim=(1e0, 1e5),
+        filename=filename,
+        )
+
+    ys = times.T
+    ylabel = "Time (s)"
+    filename = "data/path/binary_path_time_f={}_noise={}.png".format(fth, gate_desc)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, yscale='log')
+
+    ys = fids.T
+    ylabel = "Fidelity"
+    filename = "data/path/binary_path_fid_f={}_noise={}.png".format(fth, gate_desc)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, ylim=(0.5, 1))
+
+
+
+def test_werner_cost(fth, exp_num, gate=qu.GWP):
+    if gate == qu.GWP:
+        gate_desc = "P"
+    elif gate == qu.GWH:
+        gate_desc = "H"
+    elif gate == qu.GWM:
+        gate_desc = "M"
+    elif gate == qu.GWL:
+        gate_desc = "L"
+
+    cost_cap = 1e5
+    edge_num_range = range(2, 16, 1)
+    # edge_num_range = range(4, 11, 2)
+
+    binary_edge_limit = 10
+    if fth <= 0.95:
+        if gate == qu.GWP:
+            binary_edge_limit = 6
+        elif gate == qu.GWH:
+            binary_edge_limit = 4
+        else:
+            binary_edge_limit = 4
+    if fth <= 0.9:
+        if gate == qu.GWP:
+            binary_edge_limit = 8
+        elif gate == qu.GWH:
+            binary_edge_limit = 6
+        else:
+            binary_edge_limit = 4
+
+    # labels = ["TREE", "NESTED-F", "NESTED-C", "DP-1.2", "DP-1.3"]
+    labels = ["TREE", "DP-1.2", "DP-1.3", "NESTED-F", "NESTED-C", ]
+
+    NESTED_EDGE_NUMS = edge_num_range
+
+    costs = np.zeros((len(edge_num_range), len(labels)))
+    times = np.zeros((len(edge_num_range), len(labels)))
+    fids = np.zeros((len(edge_num_range), len(labels)))
+    for edge_num in edge_num_range:
+        test_cost = np.zeros((len(labels)))
+        test_time = np.zeros((len(labels)))
+        test_fid = np.zeros((len(labels)))
+
+        for i in range(exp_num):
+            edges = test_edges_gen(edge_num, (0.95, 1))
+
+            start = time.time()
+            f, allocs = test_TreeSolver(edges, gate, fth, cost_cap, False)
+            idx = labels.index("TREE")
+            test_time[idx] += time.time() - start
+            test_cost[idx] += sum(allocs)
+            test_fid[idx] += f
+            tree_budget = np.ceil(sum(allocs)).astype(int)
+
+            idx1 = labels.index("DP-1.2") 
+            idx2 = labels.index("DP-1.3")
+            if  edge_num <= binary_edge_limit:
+                start = time.time()
+                f, allocs = test_DPSolver(edges, gate, int(tree_budget*1.2), eps=0)
+                test_time[idx1] += time.time() - start
+                test_cost[idx1] += sum(allocs)
+                test_fid[idx1] += f
+
+                start = time.time()
+                f, allocs = test_DPSolver(edges, gate, int(tree_budget*1.3), eps=0)
+                test_time[idx2] += time.time() - start
+                test_cost[idx2] += sum(allocs)
+                test_fid[idx2] += f
+            else:
+                test_time[idx1] += np.nan
+                test_cost[idx1] += np.nan
+                test_fid[idx1] += np.nan
+
+                test_time[idx2] += np.nan
+                test_cost[idx2] += np.nan
+                test_fid[idx2] += np.nan
+
+            idx1 = labels.index("NESTED-F")
+            idx2 = labels.index("NESTED-C")
+            if edge_num in NESTED_EDGE_NUMS:
+                start = time.time()
+                f, allocs = test_NestedSolver(edges, gate, budget=tree_budget, M_option='floor')
+                test_time[idx1] += time.time() - start
+                test_cost[idx1] += sum(allocs)
+                test_fid[idx1] += f
+
+                start = time.time()
+                f, allocs = test_NestedSolver(edges, gate, budget=tree_budget, M_option='ceil')
+                test_time[idx2] += time.time() - start
+                test_cost[idx2] += sum(allocs)
+                test_fid[idx2] += f
+            else:
+                test_time[idx1] += np.nan
+                test_cost[idx1] += np.nan
+                test_fid[idx1] += np.nan
+
+                test_time[idx2] += np.nan
+                test_cost[idx2] += np.nan
+                test_fid[idx2] += np.nan
+
+
+        costs[edge_num_range.index(edge_num)] = test_cost / exp_num
+        times[edge_num_range.index(edge_num)] = test_time / exp_num
+        fids[edge_num_range.index(edge_num)] = test_fid / exp_num
+
+        print("edge num {} done".format(edge_num))
+
+    x = edge_num_range
+    ys = costs.T
+    xlabel = "Hop Number"
+    ylabel = "Cost"
+    markers = ['o', 's', 'v', 'd', 'p', 'x', 'h', '>', '<']
+    # default color cycle
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    filename = "data/path/werner_path_cost_f={}_noise={}.png".format(fth, gate_desc)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, yscale='log')
+
+    ys1 = costs[:, :3].T
+    ys2 = costs[:, 3:].T
+    filename = "data/path/werner_path_cost_f={}_noise={}_2y.png".format(fth, gate_desc)
+    draw_2y_lines(x, ys1, ys2, xlabel, 
+        y1_label=ylabel, y2_label=ylabel,
+        line1_labels=labels[:3], line2_labels=labels[3:],
+        line1_colors=colors[:3], line2_colors=colors[3:],
+        line1_markers=markers[:3], line2_markers=markers[3:],
+        xscale='linear', y1_scale='linear', y2_scale='log',
+        xreverse=False, y1_reverse=False, y2_reverse=False,
+        xlim=None, y1_lim=None, y2_lim=(1e0, 1e5),
+        filename=filename,
+        )
+
+    ys = times.T
+    ylabel = "Time (s)"
+    filename = "data/path/werner_path_time_f={}_noise={}.png".format(fth, gate_desc)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, yscale='log')
+
+    ys = fids.T
+    ylabel = "Fidelity"
+    filename = "data/path/werner_path_fid_f={}_noise={}.png".format(fth, gate_desc)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, ylim=(0.5, 1))
+
+def test_werner_succ(fth, exp_num, gate=qu.GWP):
+    if gate == qu.GWP:
+        gate_desc = "P"
+    elif gate == qu.GWH:
+        gate_desc = "H"
+    elif gate == qu.GWM:
+        gate_desc = "M"
+    elif gate == qu.GWL:
+        gate_desc = "L"
+
+    cost_cap = 1e5
+    edge_num_range = range(2, 16, 1)
+    # edge_num_range = range(4, 11, 2)
+
+    binary_edge_limit = 10
+    if fth <= 0.95:
+        if gate == qu.GWP:
+            binary_edge_limit = 6
+        elif gate == qu.GWH:
+            binary_edge_limit = 4
+        else:
+            binary_edge_limit = 4
+    if fth <= 0.9:
+        if gate == qu.GWP:
+            binary_edge_limit = 8
+        elif gate == qu.GWH:
+            binary_edge_limit = 6
+        else:
+            binary_edge_limit = 4
+
+    # labels = ["TREE", "NESTED-F", "NESTED-C", "DP-1.2", "DP-1.3"]
+    labels = ["TREE", "DP-1.2", "DP-1.3", "NESTED-F", "NESTED-C", ]
+
+    NESTED_EDGE_NUMS = edge_num_range
+
+    costs = np.zeros((len(edge_num_range), len(labels)))
+    times = np.zeros((len(edge_num_range), len(labels)))
+    fids = np.zeros((len(edge_num_range), len(labels)))
+    for edge_num in edge_num_range:
+        test_cost = np.zeros((len(labels)))
+        test_time = np.zeros((len(labels)))
+        test_fid = np.zeros((len(labels)))
+
+        for i in range(exp_num):
+            edges = test_edges_gen(edge_num, (0.95, 1))
+
+            start = time.time()
+            f, allocs = test_TreeSolver(edges, gate, fth, cost_cap, False)
+            idx = labels.index("TREE")
+            test_time[idx] += time.time() - start
+            test_cost[idx] += sum(allocs)
+            test_fid[idx] += f
+            tree_budget = np.ceil(sum(allocs)).astype(int)
+
+            idx1 = labels.index("DP-1.2") 
+            idx2 = labels.index("DP-1.3")
+            if  edge_num <= binary_edge_limit:
+                start = time.time()
+                f, allocs = test_DPSolver(edges, gate, int(tree_budget*1.2), eps=0)
+                test_time[idx1] += time.time() - start
+                test_cost[idx1] += sum(allocs)
+                test_fid[idx1] += f
+
+                start = time.time()
+                f, allocs = test_DPSolver(edges, gate, int(tree_budget*1.3), eps=0)
+                test_time[idx2] += time.time() - start
+                test_cost[idx2] += sum(allocs)
+                test_fid[idx2] += f
+            else:
+                test_time[idx1] += np.nan
+                test_cost[idx1] += np.nan
+                test_fid[idx1] += np.nan
+
+                test_time[idx2] += np.nan
+                test_cost[idx2] += np.nan
+                test_fid[idx2] += np.nan
+
+            idx1 = labels.index("NESTED-F")
+            idx2 = labels.index("NESTED-C")
+            if edge_num in NESTED_EDGE_NUMS:
+                start = time.time()
+                f, allocs = test_NestedSolver(edges, gate, budget=tree_budget, M_option='floor')
+                test_time[idx1] += time.time() - start
+                test_cost[idx1] += sum(allocs)
+                test_fid[idx1] += f
+
+                start = time.time()
+                f, allocs = test_NestedSolver(edges, gate, budget=tree_budget, M_option='ceil')
+                test_time[idx2] += time.time() - start
+                test_cost[idx2] += sum(allocs)
+                test_fid[idx2] += f
+            else:
+                test_time[idx1] += np.nan
+                test_cost[idx1] += np.nan
+                test_fid[idx1] += np.nan
+
+                test_time[idx2] += np.nan
+                test_cost[idx2] += np.nan
+                test_fid[idx2] += np.nan
+
+
+        costs[edge_num_range.index(edge_num)] = test_cost / exp_num
+        times[edge_num_range.index(edge_num)] = test_time / exp_num
+        fids[edge_num_range.index(edge_num)] = test_fid / exp_num
+
+        print("edge num {} done".format(edge_num))
+
+    x = edge_num_range
+    ys = costs.T
+    xlabel = "Hop Number"
+    ylabel = "Cost"
+    markers = ['o', 's', 'v', 'd', 'p', 'x', 'h', '>', '<']
+    # default color cycle
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    filename = "data/path/werner_path_cost_f={}_noise={}.png".format(fth, gate_desc)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, yscale='log')
+
+    ys1 = costs[:, :3].T
+    ys2 = costs[:, 3:].T
+    filename = "data/path/werner_path_cost_f={}_noise={}_2y.png".format(fth, gate_desc)
+    draw_2y_lines(x, ys1, ys2, xlabel, 
+        y1_label=ylabel, y2_label=ylabel,
+        line1_labels=labels[:3], line2_labels=labels[3:],
+        line1_colors=colors[:3], line2_colors=colors[3:],
+        line1_markers=markers[:3], line2_markers=markers[3:],
+        xscale='linear', y1_scale='linear', y2_scale='log',
+        xreverse=False, y1_reverse=False, y2_reverse=False,
+        xlim=None, y1_lim=None, y2_lim=(1e0, 1e5),
+        filename=filename,
+        )
+
+    ys = times.T
+    ylabel = "Time (s)"
+    filename = "data/path/werner_path_time_f={}_noise={}.png".format(fth, gate_desc)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, yscale='log')
+
+    ys = fids.T
+    ylabel = "Fidelity"
+    filename = "data/path/werner_path_fid_f={}_noise={}.png".format(fth, gate_desc)
+    draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, ylim=(0.5, 1))
+
+
 
 def test_wn_cost_1(fth, exp_num):
     op = qu.GWH
@@ -1170,20 +1618,27 @@ def test_wn_others(fth, exp_num):
 
 if __name__ == '__main__':
     exp_num = 1
-    # test_dp_sys(0.8, 10)
 
-    # test_binary_all_time(0.9, 10)
-    # test_binary_all_time(0.99, 10)
-    # test_binary_all_time(0.9999, 10)
+    # 3 figures for different fth
+    # test_binary_cost_all(0.9, exp_num)
+    # test_binary_cost_all(0.99, exp_num)
+    # test_binary_cost_all(0.9999, exp_num)
 
-    # test_binary_cost_1(0.9, 20)
-    # test_binary_cost_1(0.99, 20)
-    # test_binary_cost_1(0.9999, 20)
+    # 3 figures for different noise
+    # test_binary_succ_all(0.9, exp_num, gate=qu.GDP)
+    # test_binary_succ_all(0.9, exp_num, gate=qu.GDP_LOSH)
+    # test_binary_succ_all(0.9, exp_num, gate=qu.GDP_LOSL)
 
-    test_binary_cost_all(0.9, exp_num)
-    test_binary_cost_all(0.99, exp_num)
-    test_binary_cost_all(0.9999, exp_num)
+    # 3 figures for different fth (Werner)
+    # test_werner_cost(0.85, exp_num)
+    # test_werner_cost(0.9, exp_num)
+    # test_werner_cost(0.95, exp_num)
 
+    # 3 figures for different noise (Werner)
+    # test_werner_succ does not differ much, test_werner_cost is enough
+    test_werner_cost(0.9, exp_num, gate=qu.GWP)
+    test_werner_cost(0.9, exp_num, gate=qu.GWH)
+    test_werner_cost(0.9, exp_num, gate=qu.GWL)
 
     # test_wn_sys_full(0.8, 10)
     # test_wn_sys_full_2(0.85, 20)

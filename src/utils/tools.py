@@ -78,30 +78,32 @@ def draw_2y_lines(
 
     for y1, label, color, marker in zip(ys1, line1_labels, line1_colors, line1_markers):
         # find first y > ylim[1]
+        x1 = x
         if y1_lim is not None:
             idx = np.where(y1 > y1_lim[1])[0]
             if len(idx) > 0:
                 y1 = y1[:idx[0]]
-                x = x[:idx[0]]
+                x1 = x[:idx[0]]
         ax1.plot(
-            x, y1, 
+            x1, y1, 
             label=label, color=color, marker=marker, 
             markerfacecolor='none', markersize=10
             )
     
     for y2, label, color, marker in zip(ys2, line2_labels, line2_colors, line2_markers):
         # find first y > ylim[1]
+        x2 = x
         if y2_lim is not None:
             idx = np.where(y2 > y2_lim[1])[0]
             if len(idx) > 0:
                 y2 = y2[:idx[0]]
-                x = x[:idx[0]]
-        ax2.plot(x, y2, 
+                x2 = x[:idx[0]]
+        ax2.plot(x2, y2, 
             label=label, color=color, marker=marker, 
             markerfacecolor='none', markersize=10
             )
-    # force x ticks to be integers and multiples of 5
-    ax1.xaxis.set_major_locator(plt.MultipleLocator(5))
+    # force x ticks to be integers and multiple of 5, including 0
+    ax1.set_xticks(np.arange(0, x[-1], 5))
     ax1.set_xlabel(xlabel, fontsize=20)
     ax1.set_ylabel(y1_label, fontsize=20)
     ax2.set_ylabel(y2_label, fontsize=20)

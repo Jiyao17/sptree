@@ -535,7 +535,7 @@ def test_SST():
     from physical.quantum import Gate, EntType, HWParam
     wsys_n = Gate(EntType.WERNER, qu.HWM)
     wsys = Gate(EntType.WERNER)
-    dsys = Gate(EntType.DEPHASED)
+    dsys = Gate(EntType.BINARY)
     op = wsys_n
     
     f1, f2, f3, f4 = 0.9, 0.9, 0.9, 0.9
@@ -575,7 +575,7 @@ def test_PST():
     from physical.quantum import Gate, EntType, HWParam
     wsys_n = Gate(EntType.WERNER, qu.HWM)
     wsys = Gate(EntType.WERNER)
-    dsys = Gate(EntType.DEPHASED)
+    dsys = Gate(EntType.BINARY)
     op = dsys
     
     f1, f2, f3, f4 = 0.9, 0.9, 0.9, 0.9
@@ -620,7 +620,7 @@ def test_SPP_PSS():
 
     wsys_n = Gate(EntType.WERNER, qu.HWM)
     wsys = Gate(EntType.WERNER)
-    dsys = Gate(EntType.DEPHASED)
+    dsys = Gate(EntType.BINARY)
     op = wsys
     
     f1, f2, f3, f4 = np.random.rand(4) * 0.5 + 0.5
