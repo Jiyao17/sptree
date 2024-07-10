@@ -420,7 +420,7 @@ def test_binary_cost_all(fth, exp_num, gate=qu.GDP_LOSH):
         gate_desc = "L"
 
     cost_cap = 1e5
-    edge_num_range = range(2, 16, 1)
+    edge_num_range = range(2, 26, 1)
     # edge_num_range = range(4, 11, 2)
 
     binary_edge_limit = 4
@@ -567,7 +567,7 @@ def test_binary_cost_all(fth, exp_num, gate=qu.GDP_LOSH):
 
 
 
-def test_binary_succ_all(fth, exp_num, gate=qu.GDP):
+def test_binary_succ_all(fth, exp_num, gate=qu.GDP_LOSH):
     if gate == qu.GDP:
         gate_desc = "P"
     elif gate == qu.GDP_LOSH:
@@ -1780,7 +1780,7 @@ if __name__ == '__main__':
     exp_num = 1
 
     # 3 figures for different fth
-    # test_binary_cost_all(0.9, exp_num)
+    test_binary_cost_all(0.9, exp_num)
     # test_binary_cost_all(0.99, exp_num)
     # test_binary_cost_all(0.9999, exp_num)
 
@@ -1791,9 +1791,9 @@ if __name__ == '__main__':
     # test_binary_succ_all(0.9, exp_num, gate=qu.GDP_LOSL)
 
     # 3 figures for different fth (Werner)
-    test_werner_cost(0.85, exp_num)
-    test_werner_cost(0.9, exp_num)
-    test_werner_cost(0.95, exp_num)
+    # test_werner_cost(0.85, exp_num)
+    # test_werner_cost(0.9, exp_num)
+    # test_werner_cost(0.95, exp_num)
 
     # 3 figures for different noise (Werner)
     # test_werner_succ does not differ much, test_werner_cost is enough
