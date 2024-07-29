@@ -1,6 +1,7 @@
 
 import time
 import copy
+import pickle
 
 import numpy as np
 import networkx as nx
@@ -53,6 +54,7 @@ def test_dp_tp_by_fth(size, exp_num):
     task.set_user_pairs(user_pair_num)
     task.set_up_paths(path_num)
 
+    print("task created for size {}".format(size))
     for i, fth in enumerate(req_fids):
         task.workload_gen(req_num_range, (fth, fth))
 
@@ -96,6 +98,7 @@ def test_dp_tp_by_fth(size, exp_num):
         tps[i] /= exp_num
         times[i] /= exp_num
 
+        
         print("fidelity {} done".format(fth))
 
     x = error
@@ -104,6 +107,7 @@ def test_dp_tp_by_fth(size, exp_num):
     ylabel = "Throughput"
     markers = ['o', 's', 'v', 'x', 'd', 'p', '*']
     filename = "data/net/dp_net_tp_{}.png".format(size)
+    pickle.dump((x, ys, xlabel, ylabel, labels, markers), open(filename + ".pkl", "wb"))
     draw_lines(x, ys, xlabel, ylabel, labels, markers, xscale='log', xreverse=True, filename=filename)
 
     ys = [times[:, 0], times[:, 1], times[:, 2], times[:, 3], times[:, 4], times[:, 5], times[:, 6]]
@@ -330,9 +334,9 @@ if __name__ == '__main__':
     #     avg_edge_num += len(topology.edges)
     # print(avg_edge_num / 100)
 
-    test_dp_tp_by_fth('small', 1)
-    test_dp_tp_by_fth('medium', 1)
-    test_dp_tp_by_fth('large', 1)
+    test_dp_tp_by_fth('small', 20)
+    test_dp_tp_by_fth('medium', 20)
+    test_dp_tp_by_fth('large', 20)
 
     # test_wn_tp_by_fth('small', 100)
     # test_wn_tp_by_fth('medium', 100)

@@ -1,6 +1,7 @@
 
 import time
 import copy
+import pickle
 
 import numpy as np
 import networkx as nx
@@ -86,6 +87,7 @@ def test_dp_tp_by_fth(size, exp_num):
     ylabel = "Throughput"
     markers = ['o', 's', 'v']
     filename = "../data/net/dp_net_tp_{}.png".format(size)
+    pickle.dump((x, ys, xlabel, ylabel, labels, markers), open(filename + ".pkl", "wb"))
     draw_lines(x, ys, xlabel, ylabel, labels, markers, xscale='log', xreverse=True, filename=filename)
 
     ys = [times[:, 0], times[:, 1], times[:, 2]]
@@ -215,9 +217,9 @@ if __name__ == '__main__':
 
 
 
-    test_dp_tp_by_fth('small', 10)
-    # test_dp_tp_by_fth('medium', 100)
-    # test_dp_tp_by_fth('large', 100)
+    test_dp_tp_by_fth('small', 20)
+    test_dp_tp_by_fth('medium', 20)
+    test_dp_tp_by_fth('large', 20)
 
     # test_wn_tp_by_fth('small', 100)
     # test_wn_tp_by_fth('medium', 100)

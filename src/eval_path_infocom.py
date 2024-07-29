@@ -420,7 +420,7 @@ def test_binary_cost_all(fth, exp_num, gate=qu.GDP_LOSH):
         gate_desc = "L"
 
     cost_cap = 1e5
-    edge_num_range = range(2, 26, 1)
+    edge_num_range = range(2, 16, 1)
     # edge_num_range = range(4, 11, 2)
 
     binary_edge_limit = 4
@@ -541,17 +541,18 @@ def test_binary_cost_all(fth, exp_num, gate=qu.GDP_LOSH):
     filename = "data/path/binary_path_cost_f={}_noise={}.png".format(fth, gate_desc)
     draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, yscale='log')
 
-    ys1 = costs[:, :3].T
-    ys2 = costs[:, 3:].T
+    separate = 5
+    ys1 = costs[:, :separate].T
+    ys2 = costs[:, separate:].T
     filename = "data/path/binary_path_cost_f={}_noise={}_2y.png".format(fth, gate_desc)
     draw_2y_lines(x, ys1, ys2, xlabel, 
         y1_label=ylabel, y2_label=ylabel,
-        line1_labels=labels[:3], line2_labels=labels[3:],
-        line1_colors=colors[:3], line2_colors=colors[3:],
-        line1_markers=markers[:3], line2_markers=markers[3:],
+        line1_labels=labels[:separate], line2_labels=labels[separate:],
+        line1_colors=colors[:separate], line2_colors=colors[separate:],
+        line1_markers=markers[:separate], line2_markers=markers[separate:],
         xscale='linear', y1_scale='linear', y2_scale='log',
         xreverse=False, y1_reverse=False, y2_reverse=False,
-        xlim=None, y1_lim=None, y2_lim=(1e0, 1e5),
+        xlim=None, y1_lim=(0, 1e3), y2_lim=(1e0, 1e6),
         filename=filename,
         )
 
@@ -589,7 +590,7 @@ def test_binary_succ_all(fth, exp_num, gate=qu.GDP_LOSH):
             binary_edge_limit = 6
     if fth <= 0.9:
         if gate == qu.GDP:
-            binary_edge_limit = 10
+            binary_edge_limit = 8
         elif gate == qu.GDP_LOSH:
             binary_edge_limit = 6
 
@@ -699,17 +700,18 @@ def test_binary_succ_all(fth, exp_num, gate=qu.GDP_LOSH):
     filename = "data/path/binary_path_cost_f={}_noise={}.png".format(fth, gate_desc)
     draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, yscale='log')
 
-    ys1 = costs[:, :3].T
-    ys2 = costs[:, 3:].T
+    separate = 5
+    ys1 = costs[:, :separate].T
+    ys2 = costs[:, separate:].T
     filename = "data/path/binary_path_cost_f={}_noise={}_2y.png".format(fth, gate_desc)
     draw_2y_lines(x, ys1, ys2, xlabel, 
         y1_label=ylabel, y2_label=ylabel,
-        line1_labels=labels[:3], line2_labels=labels[3:],
-        line1_colors=colors[:3], line2_colors=colors[3:],
-        line1_markers=markers[:3], line2_markers=markers[3:],
+        line1_labels=labels[:separate], line2_labels=labels[separate:],
+        line1_colors=colors[:separate], line2_colors=colors[separate:],
+        line1_markers=markers[:separate], line2_markers=markers[separate:],
         xscale='linear', y1_scale='linear', y2_scale='log',
         xreverse=False, y1_reverse=False, y2_reverse=False,
-        xlim=None, y1_lim=None, y2_lim=(1e0, 1e5),
+        xlim=None, y1_lim=None, y2_lim=(1e0, 1e3),
         filename=filename,
         )
 
@@ -1780,15 +1782,15 @@ if __name__ == '__main__':
     exp_num = 1
 
     # 3 figures for different fth
-    test_binary_cost_all(0.9, exp_num)
+    # test_binary_cost_all(0.9, exp_num)
     # test_binary_cost_all(0.99, exp_num)
     # test_binary_cost_all(0.9999, exp_num)
 
     # 3 figures for different noise
-    # test_binary_succ_all(0.9, exp_num, gate=qu.GDP)    
-    # test_binary_succ_all(0.9, exp_num, gate=qu.GDP_LOSH)
-    # test_binary_succ_all(0.9, exp_num, gate=qu.GDP_LOSM)
-    # test_binary_succ_all(0.9, exp_num, gate=qu.GDP_LOSL)
+    test_binary_succ_all(0.99, exp_num, gate=qu.GDP)    
+    # test_binary_succ_all(0.99, exp_num, gate=qu.GDP_LOSH)
+    # test_binary_succ_all(0.99, exp_num, gate=qu.GDP_LOSM)
+    # test_binary_succ_all(0.99, exp_num, gate=qu.GDP_LOSL)
 
     # 3 figures for different fth (Werner)
     # test_werner_cost(0.85, exp_num)
