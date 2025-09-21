@@ -61,7 +61,7 @@ HWP_LOSL = HWParam((1, 1, 1, 0.5))
 # perfect hardware with linear optics swapping, medium success rate
 HWP_LOSM = HWParam((1, 1, 1, 0.625))
 # perfect hardware with linear optics swapping, high success rate
-HWP_LOSH = HWParam((1, 1, 1, 0.7))
+HWP_LOSH = HWParam((1, 1, 1, 0.75))
 # noisy hardware, high accuracy
 HWH = HWParam((0.99999, 0.99999, 0.9999, 0.7))
 # noisy hardware, medium accuracy

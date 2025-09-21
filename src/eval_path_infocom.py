@@ -428,12 +428,12 @@ def test_binary_cost_all(fth, exp_num, gate=qu.GDP_LOSH):
         if gate == qu.GDP:
             binary_edge_limit = 8
         elif gate == qu.GDP_LOSH:
-            binary_edge_limit = 4
+            binary_edge_limit = 5
     if fth <= 0.9:
         if gate == qu.GDP:
             binary_edge_limit = 10
         elif gate == qu.GDP_LOSH:
-            binary_edge_limit = 5
+            binary_edge_limit = 6
 
     # labels = ["TREE", "NESTED-F", "NESTED-C", "DP-1.2", "DP-1.3"]
     labels = ["TREE", "DP-1.2", "DP-1.3", "GRDY", "EPP", "NESTED-F", "NESTED-C", ]
@@ -617,6 +617,7 @@ def test_binary_succ_all(fth, exp_num, gate=qu.GDP_LOSH):
             test_cost[idx] += sum(allocs)
             test_fid[idx] += f
             tree_budget = np.ceil(sum(allocs)).astype(int)
+            print("tree solverr done.")
 
             start = time.time()
             f, allocs = test_GRDSolver(edges, gate, fth, cost_cap,
@@ -625,6 +626,7 @@ def test_binary_succ_all(fth, exp_num, gate=qu.GDP_LOSH):
             test_time[idx] += time.time() - start
             test_cost[idx] += sum(allocs)
             test_fid[idx] += f
+            print("GRD solver done.")
 
             start = time.time()
             f, allocs = test_EPPSolver(edges, gate, fth, cost_cap,
@@ -633,6 +635,7 @@ def test_binary_succ_all(fth, exp_num, gate=qu.GDP_LOSH):
             test_time[idx] += time.time() - start
             test_cost[idx] += sum(allocs)
             test_fid[idx] += f
+            print("EPP solver done.")
                 
             idx1 = labels.index("DP-1.2") 
             idx2 = labels.index("DP-1.3")
@@ -657,6 +660,8 @@ def test_binary_succ_all(fth, exp_num, gate=qu.GDP_LOSH):
                 test_cost[idx2] += np.nan
                 test_fid[idx2] += np.nan
 
+            print("DP solver done.")
+
             idx1 = labels.index("NESTED-F")
             idx2 = labels.index("NESTED-C")
             if edge_num in NESTED_EDGE_NUMS:
@@ -680,6 +685,7 @@ def test_binary_succ_all(fth, exp_num, gate=qu.GDP_LOSH):
                 test_cost[idx2] += np.nan
                 test_fid[idx2] += np.nan
 
+            print("Nested solver done.")
 
                                       
 
@@ -700,7 +706,7 @@ def test_binary_succ_all(fth, exp_num, gate=qu.GDP_LOSH):
     filename = "data/path/binary_path_cost_f={}_noise={}.png".format(fth, gate_desc)
     draw_lines(x, ys, xlabel, ylabel, labels, markers, filename=filename, yscale='log')
 
-    separate = 5
+    separate = 3
     ys1 = costs[:, :separate].T
     ys2 = costs[:, separate:].T
     filename = "data/path/binary_path_cost_f={}_noise={}_2y.png".format(fth, gate_desc)
@@ -711,7 +717,7 @@ def test_binary_succ_all(fth, exp_num, gate=qu.GDP_LOSH):
         line1_markers=markers[:separate], line2_markers=markers[separate:],
         xscale='linear', y1_scale='linear', y2_scale='log',
         xreverse=False, y1_reverse=False, y2_reverse=False,
-        xlim=None, y1_lim=None, y2_lim=(1e0, 1e3),
+        xlim=None, y1_lim=None, y2_lim=(1e0, 1e6),
         filename=filename,
         )
 
@@ -753,7 +759,7 @@ def test_werner_cost(fth, exp_num, gate=qu.GWH):
         if gate == qu.GWP:
             binary_edge_limit = 8
         elif gate == qu.GWH:
-            binary_edge_limit = 6
+            binary_edge_limit = 7
         else:
             binary_edge_limit = 4
 
@@ -1779,29 +1785,38 @@ def test_wn_others(fth, exp_num):
                 
 
 if __name__ == '__main__':
-    exp_num = 1
+    exp_num = 20
 
     # 3 figures for different fth
+    #
     # test_binary_cost_all(0.9, exp_num)
     # test_binary_cost_all(0.99, exp_num)
+    
     # test_binary_cost_all(0.9999, exp_num)
 
     # 3 figures for different noise
-    test_binary_succ_all(0.99, exp_num, gate=qu.GDP)    
+    #
+    # test_binary_succ_all(0.99, exp_num, gate=qu.GDP)    
+    
     # test_binary_succ_all(0.99, exp_num, gate=qu.GDP_LOSH)
     # test_binary_succ_all(0.99, exp_num, gate=qu.GDP_LOSM)
+    #
     # test_binary_succ_all(0.99, exp_num, gate=qu.GDP_LOSL)
 
     # 3 figures for different fth (Werner)
-    # test_werner_cost(0.85, exp_num)
+    test_werner_cost(0.85, exp_num)
+    #
     # test_werner_cost(0.9, exp_num)
     # test_werner_cost(0.95, exp_num)
 
     # 3 figures for different noise (Werner)
     # test_werner_succ does not differ much, test_werner_cost is enough
+    #
     # test_werner_cost(0.9, exp_num, gate=qu.GWP)
+    
     # test_werner_cost(0.9, exp_num, gate=qu.GWH)
     # test_werner_cost(0.9, exp_num, gate=qu.GWM)
+    #
     # test_werner_cost(0.9, exp_num, gate=qu.GWL)
 
     # test_wn_sys_full(0.8, 10)

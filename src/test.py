@@ -10,21 +10,21 @@ from solver import test_QuNetOptim
 def test_path_solvers():
     import numpy as np
     np.random.seed(0)
-    fids = np.random.random(100)
-    fid_lower_bound = 0.5
-    fid_range = 0.5
+    fids = np.random.random(10)
+    fid_lower_bound = 0.95
+    fid_range = 0
     fids = fids * fid_range + fid_lower_bound
     # fids = [0.9] * 10
     # print(fids)
-    fth = 0.9
-    edge_num = 10
+    fth = 0.95
+    edge_num = 2
     edges = {
         (i, i+1): fids[i] for i in range(edge_num)
     }
     print(fids[:edge_num])
 
-    op = qu.GDP
-    cost_cap = 100
+    op = qu.GWP
+    cost_cap = 100000000
     print("-----------------")
     # f, allocs = test_TreeSolver(edges, op, fth, cost_cap, True)
     f, allocs = test_TreeSolver(edges, op, fth, cost_cap, False)
@@ -41,10 +41,10 @@ def test_path_solvers():
     print("EPP:")
     print(f, sum(allocs), allocs)
 
-    print("-----------------")
-    f, allocs = test_DPSolver(edges, op, budget=int(np.ceil(sum(allocs))))
-    print("DP:")
-    print(f, )
+    # print("-----------------")
+    # f, allocs = test_DPSolver(edges, op, budget=int(np.ceil(sum(allocs))))
+    # print("DP:")
+    # print(f, )
 
 def test_theorem(exp_num = 10000):
     import numpy as np
@@ -88,32 +88,33 @@ def test_theorem(exp_num = 10000):
 
 if __name__ == '__main__':
 
+    test_path_solvers()
     # test_QuNetOptim()
     # test_theorem()
-    import random
-    import time
-    random.seed(0)
-    f = 0.5 + random.random() * 0.5
-    fs: list = [f] * 10
-    cs: list = [1] * 10
+    # import random
+    # import time
+    # random.seed(0)
+    # f = 0.5 + random.random() * 0.5
+    # fs: list = [f] * 10
+    # cs: list = [1] * 10
 
-    print(fs)
+    # print(fs)
 
-    c_final = 0
-    random.seed(time.time())
-    while len(fs) > 1:
-        indices = list(range(len(fs)))
-        random.shuffle(indices)
-        fs = [fs[i] for i in indices]
-        cs = [cs[i] for i in indices]
+    # c_final = 0
+    # random.seed(time.time())
+    # while len(fs) > 1:
+    #     indices = list(range(len(fs)))
+    #     random.shuffle(indices)
+    #     fs = [fs[i] for i in indices]
+    #     cs = [cs[i] for i in indices]
         
-        f1, f2 = fs.pop(0), fs.pop(0)
-        c1, c2 = cs.pop(0), cs.pop(0)
+    #     f1, f2 = fs.pop(0), fs.pop(0)
+    #     c1, c2 = cs.pop(0), cs.pop(0)
 
-        f, p = qu.GDP.purify(f1, f2)
-        c = (c1 + c2) / p
+    #     f, p = qu.GDP.purify(f1, f2)
+    #     c = (c1 + c2) / p
 
-        fs.append(f)
-        cs.append(c)
+    #     fs.append(f)
+    #     cs.append(c)
 
-    print(fs, cs)
+    # print(fs, cs)

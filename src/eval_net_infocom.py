@@ -5,6 +5,7 @@ import pickle
 
 import numpy as np
 import networkx as nx
+import matplotlib.pyplot as plt
 
 import physical.quantum as qu
 from physical.network import QuNet, QuNetTask
@@ -45,55 +46,66 @@ def test_dp_tp_by_fth(size, exp_num):
     req_fids = [ 1 - n for n in error]
     labels = ["TREE", "GRDY", "EPP", "NESTED_F", "NESTED_C", "DP-1.2", "DP-1.3"]
     
-    tps = np.zeros((len(req_fids), len(labels)))
-    times = np.zeros((len(req_fids), len(labels)))
+    tps = np.zeros((len(req_fids), len(labels)), dtype=np.float64)
+    times = np.zeros((len(req_fids), len(labels)), dtype=np.float64)
 
-    qunet = QuNet(topology, gate)
-    qunet.net_gen(node_memory, edge_capacity, edge_fidelity)
-    task = QuNetTask(qunet)
-    task.set_user_pairs(user_pair_num)
-    task.set_up_paths(path_num)
+    # qunet = QuNet(topology, gate)
+    # qunet.net_gen(node_memory, edge_capacity, edge_fidelity)
+    # task = QuNetTask(qunet)
+    # task.set_user_pairs(user_pair_num)
+    # task.set_up_paths(path_num)
 
     print("task created for size {}".format(size))
     for i, fth in enumerate(req_fids):
+        qunet = QuNet(topology, gate)
+        qunet.net_gen(node_memory, edge_capacity, edge_fidelity)
+        task = QuNetTask(qunet)
+        task.set_user_pairs(user_pair_num)
+        task.set_up_paths(path_num)
         task.workload_gen(req_num_range, (fth, fth))
 
         for j in range(exp_num):
+            print("fidelity {} exp {}...".format(fth, j))
             start = time.time()
             ObjVal = test_QuNetOptim(task, SolverType.TREE)
             tps[i, 0] += ObjVal
             times[i, 0] += time.time() - start
+            print("TREE done")
 
             start = time.time()
             ObjVal = test_QuNetOptim(task, SolverType.GRD)
             tps[i, 1] += ObjVal
             times[i, 1] += time.time() - start
-
+            print("GRDY done")
 
             start = time.time()
             ObjVal = test_QuNetOptim(task, SolverType.EPP)
             tps[i, 2] += ObjVal
             times[i, 2] += time.time() - start
+            print("EPP done")
 
             start = time.time()
             ObjVal = test_QuNetOptim(task, SolverType.NESTED_F)
             tps[i, 3] += ObjVal
             times[i, 3] += time.time() - start
+            print("NESTED_F done")
 
             start = time.time()
             ObjVal = test_QuNetOptim(task, SolverType.NESTED_C)
             tps[i, 4] += ObjVal
             times[i, 4] += time.time() - start
+            print("NESTED_C done")
 
-            start = time.time()
-            ObjVal = test_QuNetOptim(task, SolverType.DP, 1.2)
-            tps[i, 5] += ObjVal
-            times[i, 5] += time.time() - start
-
-            start = time.time()
-            ObjVal = test_QuNetOptim(task, SolverType.DP, 1.3)
-            tps[i, 6] += ObjVal
-            times[i, 6] += time.time() - start
+            # start = time.time()
+            # ObjVal = test_QuNetOptim(task, SolverType.DP, 1.2)
+            # tps[i, 5] += ObjVal
+            # times[i, 5] += time.time() - start
+            # print("DP-1.2 done")
+            # start = time.time()
+            # ObjVal = test_QuNetOptim(task, SolverType.DP, 1.3)
+            # tps[i, 6] += ObjVal
+            # times[i, 6] += time.time() - start
+            # print("DP-1.3 done")
 
         tps[i] /= exp_num
         times[i] /= exp_num
@@ -101,19 +113,21 @@ def test_dp_tp_by_fth(size, exp_num):
         
         print("fidelity {} done".format(fth))
 
-    x = error
-    ys = [tps[:, 0], tps[:, 1], tps[:, 2], tps[:, 3], tps[:, 4], tps[:, 5], tps[:, 6]]
-    xlabel = "Infidelity Threshold"
-    ylabel = "Throughput"
-    markers = ['o', 's', 'v', 'x', 'd', 'p', '*']
-    filename = "data/net/dp_net_tp_{}.png".format(size)
-    pickle.dump((x, ys, xlabel, ylabel, labels, markers), open(filename + ".pkl", "wb"))
-    draw_lines(x, ys, xlabel, ylabel, labels, markers, xscale='log', xreverse=True, filename=filename)
+        x = error
+        # ys = [tps[:, 0], tps[:, 1], tps[:, 2], tps[:, 3], tps[:, 4], tps[:, 5], tps[:, 6]]
+        ys = [tps[:, 0], tps[:, 1], tps[:, 2], tps[:, 3], tps[:, 4], ]
+        xlabel = "Infidelity Threshold"
+        ylabel = "Throughput"
+        markers = ['o', 's', 'v', 'x', 'd', 'p', '*']
+        filename = "./data/net/dp_net_tp_{}.png".format(size)
+        pickle.dump((x, ys, xlabel, ylabel, labels, markers), open(filename + ".pkl", "wb"))
+        draw_lines(x, ys, xlabel, ylabel, labels, markers, xscale='log', xreverse=True, filename=filename)
 
-    ys = [times[:, 0], times[:, 1], times[:, 2], times[:, 3], times[:, 4], times[:, 5], times[:, 6]]
-    ylabel = "Time (s)"
-    filename = "data/net/dp_net_time_{}.png".format(size)
-    draw_lines(x, ys, xlabel, ylabel, labels, markers, xscale='log', xreverse=True, filename=filename)
+        ys = [times[:, 0], times[:, 1], times[:, 2], times[:, 3], times[:, 4], times[:, 5], times[:, 6]]
+        ylabel = "Time (s)"
+        filename = "./data/net/dp_net_time_{}.png".format(size)
+        draw_lines(x, ys, xlabel, ylabel, labels, markers, xscale='log', xreverse=True, filename=filename)
+
 
 
 def create_task(
@@ -218,6 +232,7 @@ def test_wn_tp_by_fth(size, exp_num):
     ylabel = "Throughput"
     markers = ['o', 's', 'v', 'x']
     filename = "../data/net/wn_net_tp_{}.png".format(size)
+    pickle.dump((x, ys, xlabel, ylabel, labels, markers), open(filename + ".pkl", "wb"))
     draw_lines(x, ys, xlabel, ylabel, labels, markers, xreverse=True, filename=filename)
 
     ys = times.T
@@ -316,17 +331,131 @@ def test_wn_tp_by_methods(size, exp_num, gate=qu.GWP):
     xlabel = "Infidelity Threshold"
     ylabel = "Throughput"
     markers = ['o', 's', 'v', 'x', 'd', 'p']
-    filename = "../data/net/wn_net_tp_{}_{}.png".format(size, gate_desc)
+    filename = "./data/net/wn_net_tp_{}_{}.png".format(size, gate_desc)
+    pickle.dump((x, ys, xlabel, ylabel, labels, markers), open(filename + ".pkl", "wb"))
     draw_lines(x, ys, xlabel, ylabel, labels, markers, xreverse=True, filename=filename)
 
     ys = times.T
     ylabel = "Time (s)"
-    filename = "../data/net/wn_net_time_{}_{}.png".format(size, gate_desc)
+    filename = "./data/net/wn_net_time_{}_{}.png".format(size, gate_desc)
     draw_lines(x, ys, xlabel, ylabel, labels, markers, xreverse=True, filename=filename)
+
+
+def plot():
+    filenames = [
+        "./data/net/dp_net_tp_small.png.pkl",
+        "./data/net/dp_net_tp_medium.png.pkl",
+        "./data/net/dp_net_tp_large.png.pkl",
+        ]
+    
+    x = ['Small', 'Medium', 'Large']
+
+    yss = []
+    for filename in filenames:
+        _, ys, xlabel, ylabel, labels, _ = pickle.load(open(filename, "rb"))
+        yss.append(ys)
+
+    fid = 3
+    tps = {
+        'TREE': [ y[0][fid] for y in yss],
+        'GRDY': [ y[1][fid] for y in yss],
+        'EPP': [ y[2][fid] for y in yss],
+        'NESTED_F': [ y[3][fid] for y in yss],
+        'NESTED_C': [ y[4][fid] for y in yss],
+    }
+
+    filename = f"./data/net/dp_net_tp-{fid}.png"
+    # draw parallel bars
+    # each group has 5 bars, each bar represents a method
+    # each group for a size
+    # do not repeat the labels
+    bar_width = 0.15
+    index = np.arange(len(x))
+    multiplier = 0
+
+    plt.rc('font', size=14)
+    plt.subplots_adjust(0.12, 0.12, 0.95, 0.96)
+
+    fig, ax = plt.subplots()
+    for method, tp in tps.items():
+        offset = multiplier * bar_width
+        rects = ax.bar(index + offset, tp, bar_width, label=method)
+        ax.bar_label(rects, padding=3)
+
+        multiplier += 1
+
+    # ax.set_xlabel('Network Size')
+    ax.set_ylabel('Throughput')
+    ax.set_title('Throughput by Size')
+    ax.set_xticks(index + bar_width, x)
+    ax.legend(ncols=2)
+
+    fig.tight_layout()
+    plt.savefig(filename)
+
+def plot_werner():
+    # similar to plot, but for Werner state
+    filenames = [
+        "./data/net/wn_net_tp_small_H.png.pkl",
+        "./data/net/wn_net_tp_medium_H.png.pkl",
+        "./data/net/wn_net_tp_large_H.png.pkl",
+        ]
+    
+    x = ['Small', 'Medium', 'Large']
+
+    yss = []
+    for filename in filenames:
+        _, ys, xlabel, ylabel, labels, _ = pickle.load(open(filename, "rb"))
+        yss.append(ys)
+
+    fid = 2
+    tps = {
+        'TREE': [ y[0][fid] for y in yss],
+        'NESTED_F': [ y[1][fid] for y in yss],
+        'NESTED_C': [ y[2][fid] for y in yss],
+    }
+
+    filename = f"./data/net/wn_net_tp-{fid}.png"
+    # draw parallel bars
+    # each group has 5 bars, each bar represents a method
+    # each group for a size
+    # do not repeat the labels
+    bar_width = 0.25
+    index = np.arange(len(x))
+    multiplier = 0
+
+    plt.rc('font', size=14)
+    plt.subplots_adjust(0.12, 0.12, 0.95, 0.96)
+
+    fig, ax = plt.subplots()
+    for method, tp in tps.items():
+        offset = multiplier * bar_width
+        rects = ax.bar(index + offset, tp, bar_width, label=method)
+        ax.bar_label(rects, padding=3)
+
+        multiplier += 1
+
+    # ax.set_xlabel('Network Size')
+    ax.set_ylabel('Throughput')
+    ax.set_title('Throughput by Size')
+    ax.set_xticks(index + bar_width, x)
+    ax.legend(ncols=1)
+
+    fig.tight_layout()
+    plt.savefig(filename)
+
+
+    
+
 
 
 
 if __name__ == '__main__':
+
+    # plot
+    plot()
+    # plot
+    # plot_werner()
 
     # avg_edge_num = 0
     # for i in range(100):
@@ -334,13 +463,13 @@ if __name__ == '__main__':
     #     avg_edge_num += len(topology.edges)
     # print(avg_edge_num / 100)
 
-    test_dp_tp_by_fth('small', 20)
-    test_dp_tp_by_fth('medium', 20)
-    test_dp_tp_by_fth('large', 20)
+    # test_dp_tp_by_fth('small', 20)
+    # test_dp_tp_by_fth('medium', 20)
+    # test_dp_tp_by_fth('large', 20)
 
-    # test_wn_tp_by_fth('small', 100)
-    # test_wn_tp_by_fth('medium', 100)
-    # test_wn_tp_by_fth('large', 1)
+    # test_wn_tp_by_fth('small', 10)
+    # test_wn_tp_by_fth('medium', 10)
+    # test_wn_tp_by_fth('large', 10)
 
     # test_wn_tp_by_methods('small', 1)
     # test_wn_tp_by_methods('medium', 1)
