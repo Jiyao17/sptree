@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from .topology import _RealTopo, ATT, IBM
-import physical.quantum as qu
+import src.physical.quantum as qu
 
 
 # A Quantum Overlay Network (QON) is a directed multi-graph (MultiDiGraph), therefore:

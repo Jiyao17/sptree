@@ -7,8 +7,8 @@ from enum import Enum
 import numpy as np
 
 
-from physical.network import EdgeTuple
-import physical.quantum as qu
+from src.physical.network import EdgeTuple
+import src.physical.quantum as qu
 
 
 class Node:
@@ -53,10 +53,10 @@ class Node:
     def __str__(self) -> str:
         s = f'{self.node_id} {self.edge_tuple}: '
         if self.is_root():
-            s += f'f={self.fid}, '
+            s += f'f={self.fid:.2f}, c={self.cost:.2f}, '
         # keep 2 decimal places
         else:
-            s += f'f={self.fid:.2f}, '
+            s += f'f={self.fid:.2f}, c={self.cost:.2f}, '
 
         # s += f'g={self.grad:.5f}, e={self.efficiency:.5f}, a={self.adjust:.5f}, ae={self.adjust_eff:.5f}'
 
@@ -96,8 +96,8 @@ class Branch(Node):
     
     def __str__(self) -> str:
         # keep 2 decimal places
-        # return f'Branch ' + super().__str__()
-        return self.op.name[0]
+        return f'Branch ' + super().__str__()
+        # return self.op.name[0]
 
 
 class MetaTree(ABC):

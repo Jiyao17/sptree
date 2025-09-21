@@ -63,11 +63,18 @@ HWP_LOSM = HWParam((1, 1, 1, 0.625))
 # perfect hardware with linear optics swapping, high success rate
 HWP_LOSH = HWParam((1, 1, 1, 0.75))
 # noisy hardware, high accuracy
-HWH = HWParam((0.99999, 0.99999, 0.9999, 0.7))
+HWH = HWParam((0.99999, 0.99999, 0.9999, 0.75))
 # noisy hardware, medium accuracy
 HWM = HWParam((0.9999, 0.9999, 0.999, 0.625))
 # noisy hardware, low accuracy
 HWL = HWParam((0.999, 0.999, 0.99, 0.5))
+
+# noisy hardware, high accuracy, deterministic swappin
+HWH_D = HWParam((0.99999, 0.99999, 0.9999, 1))
+# noisy hardware, medium accuracy, deterministic swapping
+HWM_D = HWParam((0.9999, 0.9999, 0.999, 1))
+# noisy hardware, low accuracy, deterministic swapping
+HWL_D = HWParam((0.999, 0.999, 0.99, 1))
 
 
 class Gate:
@@ -304,6 +311,13 @@ GWH = Gate(EntType.WERNER, HWH)
 GWM = Gate(EntType.WERNER, HWM)
 # Werner operation, noisy, low accuracy
 GWL = Gate(EntType.WERNER, HWL)
+
+# Werner operation, noisy, high accuracy, deterministic swapping
+GWH_D = Gate(EntType.WERNER, HWH_D)
+# Werner operation, noisy, medium accuracy, deterministic swapping
+GWM_D = Gate(EntType.WERNER, HWM_D)
+# Werner operation, noisy, low accuracy, deterministic swapping
+GWL_D = Gate(EntType.WERNER, HWL_D)
 
 
 

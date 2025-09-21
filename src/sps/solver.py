@@ -6,11 +6,11 @@ from enum import Enum
 
 import numpy as np
 
-from physical.network import EdgeTuple
-import physical.quantum as qu
+from src.physical.network import EdgeTuple
+import src.physical.quantum as qu
 from .spt import SPST, Node, Branch
 from .spt import MetaTree
-from utils.tools import test_edges_gen
+from src.utils.tools import test_edges_gen
 
 
 AllocType = NewType('AllocType', dict[EdgeTuple, qu.BudgetType])
