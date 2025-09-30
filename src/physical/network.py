@@ -34,9 +34,10 @@ class NodeType(Enum):
 
 
 class Node:
-    def __init__(self, node_id: NodeID, node_type: NodeType,):
+    def __init__(self, node_id: NodeID, node_type: NodeType, swap_prob: float=0.5):
         self.node_id = node_id
         self.node_type = node_type
+        self.swap_prob = swap_prob
 
     def __str__(self):
         return str(self.node_type) + str(self.node_id)
@@ -48,8 +49,8 @@ class BufflessNode(Node):
 
 
 class BufferedNode(Node):
-    def __init__(self, node_id: NodeID, storage: int=0):
-        super().__init__(node_id, NodeType.BUFFERED)
+    def __init__(self, node_id: NodeID, swap_prob: float=0.5, storage: int=0):
+        super().__init__(node_id, NodeType.BUFFERED, swap_prob)
 
         self.storage = storage
 
