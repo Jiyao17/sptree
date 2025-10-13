@@ -406,13 +406,13 @@ def test_wn_others(fth, exp_num):
 if __name__ == '__main__':
     # test_dp_sys(0.8, 10)
     # test_dp_sys(0.9, 10)
-    # test_dp_sys(0.99, 10)
+    test_dp_sys(0.99, 10)
     # test_dp_sys(0.9999, 10)
 
     # test_wn_sys_full(0.8, 10)
     # test_wn_sys_full(0.85, 10)
     # test_wn_sys_full(0.9, 10)
-    test_wn_sys_full(0.99, 10)
+    # test_wn_sys_full(0.99, 10)
 
     # test_wn_others(0.99, 1)
 

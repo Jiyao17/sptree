@@ -62,6 +62,7 @@ HWP_LOSL = HWParam((1, 1, 1, 0.5))
 HWP_LOSM = HWParam((1, 1, 1, 0.625))
 # perfect hardware with linear optics swapping, high success rate
 HWP_LOSH = HWParam((1, 1, 1, 0.75))
+HWP_DS = HWParam((1, 1, 1, 0.9999))
 # noisy hardware, high accuracy
 HWH = HWParam((0.99999, 0.99999, 0.9999, 0.75))
 # noisy hardware, medium accuracy
@@ -70,12 +71,13 @@ HWM = HWParam((0.9999, 0.9999, 0.999, 0.625))
 HWL = HWParam((0.999, 0.999, 0.99, 0.5))
 
 # noisy hardware, high accuracy, deterministic swappin
-HWH_D = HWParam((0.99999, 0.99999, 0.9999, 1))
+HWH_D = HWParam((0.99999, 0.99999, 0.9999, 0.9999))
 # noisy hardware, medium accuracy, deterministic swapping
-HWM_D = HWParam((0.9999, 0.9999, 0.999, 1))
+HWM_D = HWParam((0.9999, 0.9999, 0.999, 0.999))
 # noisy hardware, low accuracy, deterministic swapping
-HWL_D = HWParam((0.999, 0.999, 0.99, 1))
+HWL_D = HWParam((0.999, 0.999, 0.99, 0.99))
 
+HWD = HWParam((0.99999, 0.99999, 0.9999, 0.9999))
 
 class Gate:
     def __init__(self, 
@@ -303,6 +305,8 @@ GDP_LOSM = Gate(EntType.BINARY, HWP_LOSM)
 # Dephased operation, perfect, with linear optics swapping, high success rate
 GDP_LOSH = Gate(EntType.BINARY, HWP_LOSH)
 
+GDH_D = Gate(EntType.BINARY, HWP_DS)
+
 # Werner operation, perfect
 GWP = Gate(EntType.WERNER, HWP)
 # Werner operation, noisy, high accuracy
@@ -311,6 +315,8 @@ GWH = Gate(EntType.WERNER, HWH)
 GWM = Gate(EntType.WERNER, HWM)
 # Werner operation, noisy, low accuracy
 GWL = Gate(EntType.WERNER, HWL)
+# Werner operation, noisy, high accuracy, with deterministic swapping
+GWD = Gate(EntType.WERNER, HWD)
 
 # Werner operation, noisy, high accuracy, deterministic swapping
 GWH_D = Gate(EntType.WERNER, HWH_D)

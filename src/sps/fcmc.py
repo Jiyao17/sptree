@@ -146,11 +146,17 @@ def FCMCP(G: nx.Graph, G_p: nx.Graph, s_p, t_p, psi0, phi0, Rk= 5, dphi=0.01, dp
                         # if psi_b == float('inf'):
                         #     psi_b = psi_e
                         if psi_e <= psi_b:
-                            temp = (psi_vj + psi_hat + psi_e - psi_b) / dpsi
-                            psi_hp = np.ceil(temp).astype(int) * dpsi
+                            if any(np.isinf([psi_vj, psi_hat, psi_e, psi_b])):
+                                psi_hp = float('inf')
+                            else:
+                                temp = (psi_vj + psi_hat + psi_e - psi_b) / dpsi
+                                psi_hp = np.ceil(temp).astype(int) * dpsi
                         else:
-                            temp = (psi_vj + psi_hat) / dpsi
-                            psi_hp = np.ceil(temp).astype(int) * dpsi
+                            if any(np.isinf([psi_vj, psi_hat])):
+                                psi_hp = float('inf')
+                            else:
+                                temp = (psi_vj + psi_hat) / dpsi
+                                psi_hp = np.ceil(temp).astype(int) * dpsi
 
                         if psi_hp is np.nan:
                             psi_hp = float('inf')
@@ -158,7 +164,11 @@ def FCMCP(G: nx.Graph, G_p: nx.Graph, s_p, t_p, psi0, phi0, Rk= 5, dphi=0.01, dp
                         if psi_hp >= psi0:
                             # Qj = G.nodes[j]['obj'].storage
                             Qj = Qv
-                            l_p = (c + Qj-j, phi_hp, min(psi_b, psi_e), psi_hp, path + [v, ])
+                            if v == s_p[0] or v == t_p[0]:
+                                cost = c
+                            else:
+                                cost = c + Qj - j
+                            l_p = (cost, phi_hp, min(psi_b, psi_e), psi_hp, path + [v, ])
 
                             ls = L[vj]
                             n_dominating = 0

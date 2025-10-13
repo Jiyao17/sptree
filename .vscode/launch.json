@@ -8,7 +8,10 @@
             "name": "Python Debugger: Module",
             "type": "debugpy",
             "request": "launch",
-            "module": "src.sps.fcmc"
+            // "module": "src.sps.fcmc",
+            // "module": "src.eval_net_ton"
+            "module": "src.solver",
+
         },
         {
             "name": "Python: test.py",

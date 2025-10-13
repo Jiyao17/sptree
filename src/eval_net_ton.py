@@ -7,27 +7,36 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 
-import physical.quantum as qu
-from physical.network import QuNet, QuNetTask
-from sps.solver import SolverType
-from physical.topology import ATT, IBM, RandomPAG, RandomGNP
-from solver import test_QuNetOptim
-from utils.tools import draw_lines
+import src.physical.quantum as qu
+from src.physical.network import QuNet, QuNetTask
+from src.sps.solver import SolverType
+from src.physical.topology import ATT, IBM, RandomPAG, RandomGNP
+from src.solver import test_QuNetOptim
+from src.utils.tools import draw_lines
 
 
 
 
 def test_dp_tp_by_fth(size, exp_num):
-    gate=qu.GDP_LOSH
+    gate=qu.GDH_D
     if size == 'small':
         topology=ATT()
+        node_memory=(10, 11)
+        edge_capacity=(5, 6)
+
     elif size == 'medium':
         topology = RandomGNP(50, 0.1)
+        node_memory=(30, 31)
+        edge_capacity=(15, 16)
+
     elif size == 'large':
         topology=RandomPAG(100, 2)
+        node_memory=(100, 101)
+        edge_capacity=(50, 51)
 
-    node_memory=(100, 101)
-    edge_capacity=(50, 51)
+
+    # node_memory=(100, 101)
+    # edge_capacity=(50, 51)
     # edge_capacity=(100, 101)
     edge_fidelity=(0.7, 0.95)
     if size == 'small':
@@ -42,7 +51,8 @@ def test_dp_tp_by_fth(size, exp_num):
 
     # req_fids = [0.7, 0.8, 0.9, 0.99, 0.999]
     # error = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
-    error = [1e-1, 1e-2, 1e-3, 1e-4]
+    # error = [1e-1, 1e-2, 1e-3, 1e-4]
+    error = [0.01]
     req_fids = [ 1 - n for n in error]
     labels = ["TREE", "GRDY", "EPP", "NESTED_F", "NESTED_C", "DP-1.2", "DP-1.3"]
     
@@ -128,8 +138,6 @@ def test_dp_tp_by_fth(size, exp_num):
         filename = "./data/net/dp_net_time_{}.png".format(size)
         draw_lines(x, ys, xlabel, ylabel, labels, markers, xscale='log', xreverse=True, filename=filename)
 
-
-
 def create_task(
         topology=ATT(),
         gate=qu.GWP,
@@ -150,7 +158,6 @@ def create_task(
     task.workload_gen(req_num_range, (fth, fth))
 
     return task
-
 
 def test_wn_tp_by_fth(size, exp_num):
     # gate=qu.GDP
@@ -174,11 +181,13 @@ def test_wn_tp_by_fth(size, exp_num):
     req_num_range=(10, 10)
     # req_fid_range=(0.99, 0.99)
 
-    gates = [qu.GWP, qu.GWH, qu.GWM, qu.GWL]
+    # gates = [qu.GWP, qu.GWH, qu.GWM, qu.GWL, qu.GWD]
+    gates = [qu.GWD]
+
     # req_fids = [0.7, 0.8, 0.9, 0.99, 0.999]
     # error = [1e-1, 7.5e-2, 5e-2, 2.5e-2, 1e-2]
-    error = [0.125, 0.1, 0.075, 0.05, 0.025]
-    # error = [1e-1, 1e-3, 1e-5]
+    # error = [0.125, 0.1, 0.075, 0.05, 0.025]
+    error = [1e-1,]
     req_fids = [ 1 - n for n in error]
     tps = np.zeros((len(req_fids), len(gates)))
     times = np.zeros((len(req_fids), len(gates)))
@@ -240,11 +249,12 @@ def test_wn_tp_by_fth(size, exp_num):
     filename = "../data/net/wn_net_time_{}.png".format(size)
     draw_lines(x, ys, xlabel, ylabel, labels, markers, xreverse=True, filename=filename)
 
-
 def test_wn_tp_by_methods(size, exp_num, gate=qu.GWP):
     # gate=qu.GDP
     if gate == qu.GWP:
         gate_desc = "P"
+    if gate == qu.GWD:
+        gate_desc = "D"
     elif gate == qu.GWH:
         gate_desc = "H"
     elif gate == qu.GWM:
@@ -254,12 +264,19 @@ def test_wn_tp_by_methods(size, exp_num, gate=qu.GWP):
 
     if size == 'small':
         topology=ATT()
+        node_memory=(10, 11)
+        edge_capacity=(5, 6)
     elif size == 'medium':
         topology=RandomGNP(50, 0.1)
+        node_memory=(30, 31)
+        edge_capacity=(15, 16)
     elif size == 'large':
         topology = RandomPAG(100, 2)
-    node_memory=(100, 101)
-    edge_capacity=(50, 51)
+        node_memory=(50, 51)
+        edge_capacity=(25, 26)
+
+    # node_memory=(100, 101)
+    # edge_capacity=(50, 51)
     # edge_capacity=(100, 101)
     edge_fidelity=(0.95, 1)
     if size == 'small':
@@ -268,15 +285,17 @@ def test_wn_tp_by_methods(size, exp_num, gate=qu.GWP):
         user_pair_num=25
     elif size == 'large':
         user_pair_num = 50
+    
     path_num=5
-    req_num_range=(10, 10)
+    req_num_range=(10, 11)
     # req_fid_range=(0.99, 0.99)
 
     # req_fids = [0.7, 0.8, 0.9, 0.99, 0.999]
     # error = [1e-1, 7.5e-2, 5e-2, 2.5e-2, 1e-2]
-    error = [0.125, 0.1, 0.075, 0.05]
+    # error = [0.125, 0.1, 0.075, 0.05]
     # error = [0.15, 0.125, 0.1]
-    labels = ["TREE", "NESTED-F", "NESTED-C", "DP-1.7", "DP-1.8"]
+    error = [1e-1, ]
+    # labels = ["TREE", "NESTED-F", "NESTED-C", "DP-1.7", "DP-1.8"]
     labels = ["TREE", "NESTED-F", "NESTED-C"]
 
     # error = [1e-1, 1e-3, 1e-5]
@@ -340,7 +359,6 @@ def test_wn_tp_by_methods(size, exp_num, gate=qu.GWP):
     filename = "./data/net/wn_net_time_{}_{}.png".format(size, gate_desc)
     draw_lines(x, ys, xlabel, ylabel, labels, markers, xreverse=True, filename=filename)
 
-
 def plot():
     filenames = [
         "./data/net/dp_net_tp_small.png.pkl",
@@ -355,7 +373,7 @@ def plot():
         _, ys, xlabel, ylabel, labels, _ = pickle.load(open(filename, "rb"))
         yss.append(ys)
 
-    fid = 3
+    fid = 0
     tps = {
         'TREE': [ y[0][fid] for y in yss],
         'GRDY': [ y[1][fid] for y in yss],
@@ -396,9 +414,9 @@ def plot():
 def plot_werner():
     # similar to plot, but for Werner state
     filenames = [
-        "./data/net/wn_net_tp_small_H.png.pkl",
-        "./data/net/wn_net_tp_medium_H.png.pkl",
-        "./data/net/wn_net_tp_large_H.png.pkl",
+        "./data/net/wn_net_tp_small_D.png.pkl",
+        "./data/net/wn_net_tp_medium_D.png.pkl",
+        "./data/net/wn_net_tp_large_D.png.pkl",
         ]
     
     x = ['Small', 'Medium', 'Large']
@@ -445,17 +463,11 @@ def plot_werner():
     plt.savefig(filename)
 
 
-    
-
-
-
 
 if __name__ == '__main__':
 
     # plot
-    plot()
     # plot
-    # plot_werner()
 
     # avg_edge_num = 0
     # for i in range(100):
@@ -463,9 +475,11 @@ if __name__ == '__main__':
     #     avg_edge_num += len(topology.edges)
     # print(avg_edge_num / 100)
 
-    # test_dp_tp_by_fth('small', 20)
-    # test_dp_tp_by_fth('medium', 20)
-    # test_dp_tp_by_fth('large', 20)
+    test_dp_tp_by_fth('small', 20)
+    # test_dp_tp_by_fth('medium', 10)
+    # test_dp_tp_by_fth('large', 10)
+
+    plot()
 
     # test_wn_tp_by_fth('small', 10)
     # test_wn_tp_by_fth('medium', 10)
@@ -480,9 +494,11 @@ if __name__ == '__main__':
     # test_wn_tp_by_methods('large', 20, qu.GWP)
 
 
-    # test_wn_tp_by_methods('small', 20, qu.GWH)
-    # test_wn_tp_by_methods('medium', 20, qu.GWH)
-    # test_wn_tp_by_methods('large', 20, qu.GWH)
+    # test_wn_tp_by_methods('small', 10, qu.GWD)
+    # test_wn_tp_by_methods('medium', 10, qu.GWD)
+    # test_wn_tp_by_methods('large', 10, qu.GWD)
+
+    # plot_werner()
 
     # test_wn_tp_by_methods('small', 20, qu.GWM)
     # test_wn_tp_by_methods('medium', 10, qu.GWM)

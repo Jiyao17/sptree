@@ -4,10 +4,10 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-import physical.quantum as qu
-from sps.solver import test_TreeSolver, test_GRDSolver, test_EPPSolver, test_DPSolver, test_NestedSolver
-from utils.tools import test_edges_gen, draw_lines, draw_2y_lines
-from sps.spt import MetaTree
+import src.physical.quantum as qu
+from src.sps.solver import test_TreeSolver, test_GRDSolver, test_EPPSolver, test_DPSolver, test_NestedSolver
+from src.utils.tools import test_edges_gen, draw_lines, draw_2y_lines
+from src.sps.spt import MetaTree
 
 def draw_times(
     x, ys,
@@ -738,6 +738,8 @@ def test_werner_cost(fth, exp_num, gate=qu.GWH):
         gate_desc = "P"
     elif gate == qu.GWH:
         gate_desc = "H"
+    elif gate == qu.GWD:
+        gate_desc = "D"
     elif gate == qu.GWM:
         gate_desc = "M"
     elif gate == qu.GWL:
@@ -751,6 +753,8 @@ def test_werner_cost(fth, exp_num, gate=qu.GWH):
     if fth <= 0.95:
         if gate == qu.GWP:
             binary_edge_limit = 6
+        elif gate == qu.GWD:
+            binary_edge_limit = 5
         elif gate == qu.GWH:
             binary_edge_limit = 4
         else:
@@ -758,13 +762,15 @@ def test_werner_cost(fth, exp_num, gate=qu.GWH):
     if fth <= 0.9:
         if gate == qu.GWP:
             binary_edge_limit = 8
+        elif gate == qu.GWD:
+            binary_edge_limit = 8
         elif gate == qu.GWH:
             binary_edge_limit = 7
         else:
             binary_edge_limit = 4
 
     # labels = ["TREE", "NESTED-F", "NESTED-C", "DP-1.2", "DP-1.3"]
-    labels = ["TREE", "DP-1.2", "DP-1.3", "NESTED-F", "NESTED-C", ]
+    labels = ["TREE", "DP-1.4", "DP-1.5", "NESTED-F", "NESTED-C", ]
 
     NESTED_EDGE_NUMS = edge_num_range
 
@@ -787,17 +793,24 @@ def test_werner_cost(fth, exp_num, gate=qu.GWH):
             test_fid[idx] += f
             tree_budget = np.ceil(sum(allocs)).astype(int)
 
-            idx1 = labels.index("DP-1.2") 
-            idx2 = labels.index("DP-1.3")
+            idx1 = labels.index("DP-1.4") 
+            idx2 = labels.index("DP-1.5")
             if  edge_num <= binary_edge_limit:
+                dp_budget_lb = np.ceil(tree_budget * 1.4).astype(int)
+                # if dp_budget_lb < 10:
+                #     dp_budget_lb = dp_budget_lb + 2
                 start = time.time()
-                f, allocs = test_DPSolver(edges, gate, int(tree_budget*1.2), eps=0)
+                f, allocs = test_DPSolver(edges, gate, dp_budget_lb, eps=0)
                 test_time[idx1] += time.time() - start
                 test_cost[idx1] += sum(allocs)
                 test_fid[idx1] += f
 
+                dp_budget_ub = np.ceil(tree_budget * 1.5).astype(int)
+                # if dp_budget_ub < 10:
+                #     dp_budget_ub = dp_budget_ub + 2
+
                 start = time.time()
-                f, allocs = test_DPSolver(edges, gate, int(tree_budget*1.3), eps=0)
+                f, allocs = test_DPSolver(edges, gate, dp_budget_ub, eps=0)
                 test_time[idx2] += time.time() - start
                 test_cost[idx2] += sum(allocs)
                 test_fid[idx2] += f
@@ -1785,7 +1798,7 @@ def test_wn_others(fth, exp_num):
                 
 
 if __name__ == '__main__':
-    exp_num = 20
+    exp_num = 10
 
     # 3 figures for different fth
     #
@@ -1804,10 +1817,9 @@ if __name__ == '__main__':
     # test_binary_succ_all(0.99, exp_num, gate=qu.GDP_LOSL)
 
     # 3 figures for different fth (Werner)
-    test_werner_cost(0.85, exp_num)
-    #
-    # test_werner_cost(0.9, exp_num)
-    # test_werner_cost(0.95, exp_num)
+    # test_werner_cost(0.85, exp_num, gate=qu.GWD)
+    # test_werner_cost(0.9, exp_num, gate=qu.GWD)
+    test_werner_cost(0.95, exp_num, gate=qu.GWD)
 
     # 3 figures for different noise (Werner)
     # test_werner_succ does not differ much, test_werner_cost is enough

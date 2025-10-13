@@ -140,7 +140,7 @@ class QuNet:
 
         for i, node_id in enumerate(self.nodes):
             memory = np.random.randint(node_memory[0], node_memory[1])
-            obj=BufferedNode(node_id, memory)
+            obj=BufferedNode(node_id, 1, memory)
             self.net.add_node(node_id, obj=obj)
         
         for i, edge in enumerate(self.topology.edges):

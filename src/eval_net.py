@@ -30,17 +30,18 @@ def test_dp_tp_by_fth(size, exp_num):
     # edge_capacity=(100, 101)
     edge_fidelity=(0.7, 0.95)
     if size == 'small':
-        user_pair_num=150
+        user_pair_num=13
     elif size == 'medium':
         user_pair_num=25
     elif size == 'large':
         user_pair_num = 50
     path_num=5
-    req_num_range=(1, 1)
+    req_num_range=(10, 11)
     # req_fid_range=(0.99, 0.99)
 
     # req_fids = [0.7, 0.8, 0.9, 0.99, 0.999]
-    error = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
+    # error = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
+    error = [1e-2, ]
     # error = [1e-1, 1e-3, 1e-5]
     req_fids = [ 1 - n for n in error]
     tps = np.zeros((len(req_fids), 3))
@@ -217,9 +218,9 @@ if __name__ == '__main__':
 
 
 
-    test_dp_tp_by_fth('small', 20)
-    test_dp_tp_by_fth('medium', 20)
-    test_dp_tp_by_fth('large', 20)
+    test_dp_tp_by_fth('small', 10)
+    # test_dp_tp_by_fth('medium', 20)
+    # test_dp_tp_by_fth('large', 20)
 
     # test_wn_tp_by_fth('small', 100)
     # test_wn_tp_by_fth('medium', 100)
