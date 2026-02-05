@@ -375,11 +375,11 @@ def plot():
 
     fid = 0
     tps = {
-        'TREE': [ y[0][fid] for y in yss],
-        'GRDY': [ y[1][fid] for y in yss],
-        'EPP': [ y[2][fid] for y in yss],
-        'NESTED_F': [ y[3][fid] for y in yss],
-        'NESTED_C': [ y[4][fid] for y in yss],
+        'TREE': [ int(y[0][fid]) for y in yss],
+        'GRDY': [ int(y[1][fid]) for y in yss],
+        'EPP': [ int(y[2][fid]) for y in yss],
+        'NESTED_F': [ int(y[3][fid]) for y in yss],
+        'NESTED_C': [ int(y[4][fid]) for y in yss],
     }
 
     filename = f"./data/net/dp_net_tp-{fid}.png"
@@ -426,11 +426,11 @@ def plot_werner():
         _, ys, xlabel, ylabel, labels, _ = pickle.load(open(filename, "rb"))
         yss.append(ys)
 
-    fid = 2
+    fid = 0
     tps = {
-        'TREE': [ y[0][fid] for y in yss],
-        'NESTED_F': [ y[1][fid] for y in yss],
-        'NESTED_C': [ y[2][fid] for y in yss],
+        'TREE': [ int(y[0][fid]) for y in yss],
+        'NESTED_F': [ int(y[1][fid]) for y in yss],
+        'NESTED_C': [ int(y[2][fid]) for y in yss],
     }
 
     filename = f"./data/net/wn_net_tp-{fid}.png"
@@ -475,11 +475,11 @@ if __name__ == '__main__':
     #     avg_edge_num += len(topology.edges)
     # print(avg_edge_num / 100)
 
-    test_dp_tp_by_fth('small', 20)
+    # test_dp_tp_by_fth('small', 20)
     # test_dp_tp_by_fth('medium', 10)
     # test_dp_tp_by_fth('large', 10)
 
-    plot()
+    # plot()
 
     # test_wn_tp_by_fth('small', 10)
     # test_wn_tp_by_fth('medium', 10)
@@ -498,7 +498,7 @@ if __name__ == '__main__':
     # test_wn_tp_by_methods('medium', 10, qu.GWD)
     # test_wn_tp_by_methods('large', 10, qu.GWD)
 
-    # plot_werner()
+    plot_werner()
 
     # test_wn_tp_by_methods('small', 20, qu.GWM)
     # test_wn_tp_by_methods('medium', 10, qu.GWM)
