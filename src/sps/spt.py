@@ -358,6 +358,7 @@ class SPST(MetaTree):
             for leaf, cost in zip(leaves, costs):
                 leaf.cost = cost
 
+        # shape = MetaTree.Shape.LINKED
         if shape == MetaTree.Shape.BALANCED:
             self.root = _build_balanced(leaves)
         elif shape == MetaTree.Shape.LINKED:
